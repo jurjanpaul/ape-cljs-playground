@@ -108,6 +108,7 @@ that I now of:
 
       .output {
         padding: 4px 4px;
+        padding-bottom: 1em;
         color: white;
         background-color: darkslateblue;
         font-size: small;
@@ -142,7 +143,7 @@ that I now of:
          '[reagent.core :as r]
          '[reagent.dom :as rdom])
 
-(def preloaded-code "
+(def preloaded-code ";; Better not obfuscate like this
 (println \"The answer is... \")
 (->> js/Math.PI int (nth (iterate #(* % (inc %)) 1)))")
 ;; end preloaded code
@@ -248,7 +249,11 @@ that I now of:
     (or (.getItem (.-localStorage js/window) "code")
         preloaded-code)]
    [:div {:id "editor-footer"}
-    [:button {:on-click load-code} "(re)Load"]
+    [:button
+     {:on-click load-code}
+     (if (string/blank? @output)
+       "Load"
+       "Reload")]
     [:button.copy-to-clipboard
      {:on-click #(copy-to-clipboard (code))}
      "Copy to clipboard"]]
