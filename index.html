@@ -1,0 +1,269 @@
+<html>
+  <!--
+ape-cljs-playground - Away from Preferred Editor (Clojure)Script Playground
+
+This page allows you to simply try out Clojure forms on your mobile device in
+moments when you don't have your laptop/desktop with preferred text editor at
+hand.
+
+Aims
+ - mobile-friendly Clojure editing
+   - Parinfer!
+   - kept in (local) storage to allow for quick and easy incremental work;
+   - evaluate anything that's available in (the SCI subset of) ClojureScript,
+     including macros within the browser;
+   - all output (including errors) displayed on the page.
+
+Quite a number of web-based/mobile-oriented Clojure editors exist, but I haven't
+yet found any that support all of the above sub-goals 'out of the box',
+particularly the storage part. So, that's the itch being scratched here.
+
+Currently provides
+ - run ClojureScript (per SCI / Scittle)
+   - includes macro support out-of-the-box (might require an extra reload)
+ - Parinfer (per parinfer-codemirror)
+ - persistence (per browser's localStorage)
+ - Reagent (not essential, but did not require any extra effort per Scittle,
+   plus it definitely kickstarted some dogfeeding).
+ - maximum portability by being contained in a single HTML file
+   (not al all essential, but nice as long as it's feasible in light of the
+   remaining wishes)
+
+Current annoyances
+ - Error logs don't provide position info (line and column);
+ - Losing editor/viewport focus when deleting/commenting code.
+
+Other TODOs/wishes
+ - multiple buffers
+ - footer buttons for opening braces + useful special chars
+ - improved styling (for mobile)
+ - linting
+ - allow pointing at existing code (gist) by url (query param or fragment)
+ - add deps (hardly possible in the context of Scittle?)
+ - save to gist / Klipse / dropbox dir / ...
+ - history / undo + redo
+
+Not particularly aiming for
+ - performance (just spoiled by SCI's out-of-the-box speed I guess);
+ - small download size.
+
+Thanks to all library and tool builders who made it possible for me to throw
+this together so lazily!
+
+Feel free to customize and extend this file as desired. Of course, I would like
+to hear if this turns out helpful to you in any way.
+
+Jurjan-Paul Medema, August 2022
+
+
+P.S. Some of the alternative mobile / in-browser Clojure(Script) 'playgrounds'
+that I now of:
+  * https://clojurescript.io/
+  * Replete (iPhone app)
+  * http://app.klipse.tech/
+  * https://borkdude.github.io/sci.web/
+
+-->
+  <head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.css">
+    <style type="text/css">
+      html, body {
+        box-sizing: border-box;
+        height: 100%;
+        margin: 0;
+        font-family: sans-serif;
+      }
+      body {
+        padding: 1px 4px;
+      }
+      div, h3, p, pre {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      h3 {
+        margin-top: 1em;
+      }
+
+      .parinfer-error {
+        background: #FFBEBE;
+        color: black !important;
+      }
+      .parinfer-paren-trail {
+        opacity: 0.4;
+      }
+      .CodeMirror {
+        box-sizing: border-box;
+        border: 1px solid #aaa;
+        padding: 1px;
+        padding-bottom: 1em;
+        height: 50%;
+      }
+      .CodeMirror-matchingbracket {
+        color: orange !important;
+        font-weight: bold;
+        background-color: lightgray;        ;
+      }
+
+      .output {
+        padding: 4px 4px;
+        color: white;
+        background-color: darkslateblue;
+        font-size: small;
+        max-height: 25vh;
+        overflow-y: scroll;
+      }
+
+      .copy-to-clipboard {
+        margin: 4px;
+      }
+
+      .page-source {
+        border-style: solid;
+        border-width: 1px;
+      }
+
+      #user-app {
+        padding-bottom: 2em;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/addon/edit/matchbrackets.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/mode/clojure/clojure.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/parinfer@3.12.0/parinfer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/parinfer-codemirror@1.4.2/parinfer-codemirror.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/scittle@0.2.8/dist/scittle.js" type="application/javascript"></script>
+    <script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/scittle@0.2.8/dist/scittle.reagent.js" type="application/javascript"></script>
+    <script type="application/x-scittle">
+(require '[clojure.string :as string]
+         '[reagent.core :as r]
+         '[reagent.dom :as rdom])
+
+(def preloaded-code "
+(println \"The answer is... \")
+(->> js/Math.PI int (nth (iterate #(* % (inc %)) 1)))")
+;; end preloaded code
+
+(def page-source (r/atom nil))
+(def output (r/atom ""))
+(defn print-to-output [s]
+  (swap! output str s "\n"))
+
+;; Originally went with just `binding` `*print-fn*` and `*print-err-fn*`, but
+;; that failed to be sufficient for functions invoked (again) from Reagent.
+(alter-var-root (var *print-fn*)
+                (constantly print-to-output))
+(alter-var-root (var *print-err-fn*)
+                (constantly print-to-output))
+
+(defn load-page-source []
+  (-> (js/fetch js/window.location.href)
+      (.then #(.text %))
+      (.then #(reset! page-source %))))
+
+(defn toggle-page-source []
+  (if @page-source
+    (reset! page-source nil)
+    (load-page-source)))
+
+(defn component-wrapper [component]
+  [:div
+   [:h3 "Render"]
+   [component]])
+
+(defn reagent [component]
+  (rdom/render [component-wrapper component]
+               (.getElementById js/document "user-app")))
+
+(def code-mirror
+  (atom nil))
+
+(defn code []
+  (when-let [cm @code-mirror]
+    (.getValue cm)))
+
+(defn copy-to-clipboard [s]
+  (let [temp-textarea (js/document.createElement "textarea")]
+    (.appendChild js/document.body temp-textarea)
+    (set! (.-value temp-textarea) s)
+    (.select temp-textarea)
+    (js/document.execCommand "copy")
+    (.removeChild js/document.body temp-textarea)))
+
+(defn stored-code []
+  (.getItem (.-localStorage js/window) "code"))
+
+(defn store-code [code]
+  (.setItem (.-localStorage js/window) "code" code))
+
+(defn code-input-changed [_event]
+  (-> (code) store-code))
+
+(defn initialize-code-mirror []
+  (reset! code-mirror
+          (.fromTextArea js/CodeMirror
+                         (.getElementById js/document "code-input")
+                         #js {"mode" "clojure"
+                              "lineNumbers" true
+                              "matchBrackets" true}))
+  (.on @code-mirror
+       "change"
+       (fn [_ change] (code-input-changed change)))
+  (.setValue @code-mirror
+             (or (stored-code)
+                 preloaded-code))
+  (.init js/parinferCodeMirror @code-mirror "smart" {}))
+
+(defn load-code []
+  (let [c (code)]
+    (try
+      (reset! output "")
+      (rdom/render [:<>]
+                   (.getElementById js/document "user-app"))
+      (let [value
+            (js/scittle.core.eval_string c)]
+        (print-to-output (pr-str value)))
+      (catch :default e
+        (println e)
+        (when-let [stack (.-stack e)]
+          (println stack))
+        (throw e)))))
+
+(defn editor []
+  [:div {:class "wrapper"}
+   [:h3
+   {:on-click toggle-page-source}
+    "ape-cljs-playground - Away from Preferred Editor Clojure(Script) Playground"]
+   (when @page-source
+     [:div.page-source
+      [:pre @page-source]])
+   [:textarea
+    {:id "code-input"
+     :cols 120
+     :rows 20
+     :onChange code-input-changed}
+    (or (.getItem (.-localStorage js/window) "code")
+        preloaded-code)]
+   [:div {:id "editor-footer"}
+    [:button {:on-click load-code} "(re)Load"]
+    [:button.copy-to-clipboard
+     {:on-click #(copy-to-clipboard (code))}
+     "Copy to clipboard"]]
+   (when-not (string/blank? @output)
+     [:div
+      [:h3 "Output"]
+      [:div.output
+       [:pre @output]]])])
+
+(rdom/render [editor] (.getElementById js/document "editor"))
+(initialize-code-mirror)
+    </script>
+  </head>
+  <body>
+    <div id="editor"></div>
+    <div id="user-app"></div>
+  </body>
+</html>
