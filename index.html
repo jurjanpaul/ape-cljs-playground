@@ -6,13 +6,13 @@ This page allows you to simply try out Clojure forms on your mobile device in
 moments when you don't have your laptop/desktop with preferred text editor at
 hand.
 
-Aims
- - mobile-friendly Clojure editing
-   - Parinfer!
-   - kept in (local) storage to allow for quick and easy incremental work;
-   - evaluate anything that's available in (the SCI subset of) ClojureScript,
-     including macros within the browser;
-   - all output (including errors) displayed on the page.
+Therefore, this little project aims to provide mobile-friendly Clojure editing.
+To me this means (at least):
+  - Parinfer!
+  - kept in (local) storage to allow for quick and easy incremental work;
+  - evaluate anything that's available in (the SCI subset of) ClojureScript,
+    including macros within the browser;
+  - all output (including errors) displayed on the page.
 
 Quite a number of web-based/mobile-oriented Clojure editors exist, but I haven't
 yet found any that support all of the above sub-goals 'out of the box',
@@ -25,22 +25,28 @@ Currently provides
  - persistence (per browser's localStorage)
  - Reagent (not essential, but did not require any extra effort per Scittle,
    plus it definitely kickstarted some dogfeeding).
+   To render, simply invoke the function `render-with-reagent` with a reagent
+   component function.
  - maximum portability by being contained in a single HTML file
    (not al all essential, but nice as long as it's feasible in light of the
    remaining wishes)
+ - trivial but very helpful: can be saved as an 'app' on phone's home screen.
 
 Current annoyances
+ - After (un)zooming&scrolling, the cursor position sometimes no longer
+   corresponds to the actual insertion point;
  - Error logs don't provide position info (line and column);
  - Losing editor/viewport focus when deleting/commenting code.
 
-Other TODOs/wishes
- - multiple buffers
+Other wishes/TODOs
  - footer buttons for opening braces + useful special chars
- - improved styling (for mobile)
+ - multiple buffers
+ - improved styling for mobile (just zoom and scroll a lot for now!);
  - linting
  - allow pointing at existing code (gist) by url (query param or fragment)
  - add deps (hardly possible in the context of Scittle?)
- - save to gist / Klipse / dropbox dir / ...
+ - separate Scittle script's namespace from user entered code's namespace
+ - save to gist or ... ?
  - history / undo + redo
 
 Not particularly aiming for
@@ -67,19 +73,15 @@ that I now of:
   <head>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.css">
     <style type="text/css">
-      html, body {
-        box-sizing: border-box;
-        height: 100%;
-        margin: 0;
-        font-family: sans-serif;
-      }
-      body {
-        padding: 1px 4px;
-      }
-      div, h3, p, pre {
+      html, body, div, p, pre, h3, textarea {
         box-sizing: border-box;
         margin: 0;
         padding: 0;
+      }
+
+      body {
+        padding: 1px 4px;
+        font-family: sans-serif;
       }
 
       h3 {
@@ -90,16 +92,18 @@ that I now of:
         background: #FFBEBE;
         color: black !important;
       }
+
       .parinfer-paren-trail {
         opacity: 0.4;
       }
+
       .CodeMirror {
         box-sizing: border-box;
         border: 1px solid #aaa;
         padding: 1px;
         padding-bottom: 1em;
-        height: 50%;
       }
+
       .CodeMirror-matchingbracket {
         color: orange !important;
         font-weight: bold;
@@ -107,12 +111,12 @@ that I now of:
       }
 
       .output {
+        font-family: monospace;
         padding: 4px 4px;
         padding-bottom: 1em;
         color: white;
         background-color: darkslateblue;
         font-size: small;
-        max-height: 25vh;
         overflow-y: scroll;
       }
 
@@ -145,8 +149,9 @@ that I now of:
 
 (def preloaded-code ";; Better not obfuscate like this
 (println \"The answer is... \")
-(->> js/Math.PI int (nth (iterate #(* % (inc %)) 1)))")
-;; end preloaded code
+(->> js/Math.PI int (nth (iterate #(* % (inc %)) 1)))
+")
+;; end of preloaded-code
 
 (def page-source (r/atom nil))
 (def output (r/atom ""))
@@ -169,15 +174,6 @@ that I now of:
   (if @page-source
     (reset! page-source nil)
     (load-page-source)))
-
-(defn component-wrapper [component]
-  [:div
-   [:h3 "Render"]
-   [component]])
-
-(defn reagent [component]
-  (rdom/render [component-wrapper component]
-               (.getElementById js/document "user-app")))
 
 (def code-mirror
   (atom nil))
@@ -218,12 +214,26 @@ that I now of:
                  preloaded-code))
   (.init js/parinferCodeMirror @code-mirror "smart" {}))
 
+(defn -render-user-app [component]
+  (rdom/render component
+               (.getElementById js/document "user-app")))
+
+(defn -clear-output! []
+  (reset! output "")
+  (-render-user-app [:<>]))
+
+;; available to user
+(defn render-with-reagent [reagent-component]
+  (-render-user-app [:div
+                     [:h3 "Render"]
+                     (if (vector? reagent-component)
+                       reagent-component
+                       [reagent-component])]))
+
 (defn load-code []
   (let [c (code)]
     (try
-      (reset! output "")
-      (rdom/render [:<>]
-                   (.getElementById js/document "user-app"))
+      (-clear-output!)
       (let [value
             (js/scittle.core.eval_string c)]
         (print-to-output (pr-str value)))
