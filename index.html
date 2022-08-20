@@ -33,12 +33,12 @@ Currently provides
  - persistence (per browser's localStorage)
  - Reagent (not essential, but did not require any extra effort per Scittle,
    plus it definitely kickstarted some dogfeeding).
-   To render, simply invoke the function `render-with-reagent` with a reagent
-   component function.
+   To render, simply invoke the convenience function `render-with-reagent`
+   with a reagent component function as parameter.
  - maximum portability by being contained in a single HTML file
    (not al all essential, but nice as long as it's feasible in light of the
    remaining wishes)
- - trivial but very helpful: can be saved as an 'app' on phone's home screen.
+ - trivial, but very helpful: can be saved as an 'app' on phone's home screen.
 
 Current annoyances
  - After (un)zooming&scrolling, the cursor position sometimes no longer
@@ -57,11 +57,16 @@ Other wishes/TODOs (nothing planned):
  - support links with the code in a query parameter (tricky to get right in
    combination with the local storage, not wanting to overwrite any previously
    entered code without warning);
- - add deps (hardly possible in the context of Scittle?)
+ - add deps (seems hard/hardly possible)
  - separate Scittle script's namespace from user entered code's namespace
  - save to gist or ... ?
 
+API
+- everything that Scittle exposes
+- render-with-reagent
+- load-from-url (experimental)
 
+All in all I feel this is a nice showcase of what is possible with Scittle!
 Thanks to all library and tool builders who made it possible for me to throw
 this together so lazily!
 
@@ -137,10 +142,6 @@ that I know of:
         border-style: solid;
         border-width: 1px;
       }
-
-      #user-app {
-        padding-bottom: 2em;
-      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/addon/edit/matchbrackets.js"></script>
@@ -166,6 +167,9 @@ that I know of:
    [:p \"The answer is ... \" (answer)]])
 
 (render-with-reagent the-answer)
+
+(load-from-url \"https://raw.githubusercontent.com/weavejester/medley/master/src/medley/core.cljc\")
+(pr (medley.core/index-by :id [{:id 1, :value :a} {:id 2, :value :b}]))
 
 (answer)
 ")
@@ -209,11 +213,13 @@ that I know of:
     (js/document.execCommand "copy")
     (.removeChild js/document.body temp-textarea)))
 
+(def local-store-code-key "buffer-1")
+
 (defn stored-code []
-  (.getItem (.-localStorage js/window) "code"))
+  (.getItem (.-localStorage js/window) local-store-code-key))
 
 (defn store-code [code]
-  (.setItem (.-localStorage js/window) "code" code))
+  (.setItem (.-localStorage js/window) local-store-code-key code))
 
 (defn code-input-changed [_event]
   (-> (code) store-code))
@@ -241,6 +247,21 @@ that I know of:
 (defn render-with-reagent [component]
   (reset! reagent-component component))
 
+(defonce external-sources (atom {}))
+
+(defn load-from-url [url]
+  "Experimental; necessarily asynchronous, so fetched code only becomes
+   available on reload!
+   E.g. (load-from-url \"https://raw.githubusercontent.com/weavejester/medley/master/src/medley/core.cljc\")"
+  (if-let [source (get @external-sources url)]
+    (load-string source)
+    (-> (js/fetch url)
+        (.then #(.text %))
+        (.then (fn [source]
+                 (swap! external-sources assoc url source)
+                 (load-string source)
+                 (println "Loaded" url))))))
+
 (defn load-code []
   (let [c (code)]
     (try
@@ -255,7 +276,7 @@ that I know of:
         (throw e)))))
 
 (defn editor []
-  [:div {:class "wrapper"}
+  [:div
    [:h3
    {:on-click toggle-page-source}
     "ape-cljs-playground - Away from Preferred Editor Clojure(Script) Playground"]
@@ -269,7 +290,7 @@ that I know of:
      :onChange code-input-changed}
     (or (.getItem (.-localStorage js/window) "code")
         preloaded-code)]
-   [:div {:id "editor-footer"}
+   [:div
     [:button
      {:on-click load-code}
      (if (string/blank? @output)
