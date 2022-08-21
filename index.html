@@ -60,11 +60,12 @@ Other wishes/TODOs (nothing planned):
  - add deps (seems hard/hardly possible)
  - separate Scittle script's namespace from user entered code's namespace
  - save to gist or ... ?
+ - upgrade to CodeMirror 6 (support for Parinfer seems to be a challenge still)
 
 API
-- everything that Scittle exposes
-- render-with-reagent
-- load-from-url (experimental)
+ - everything that Scittle exposes
+ - render-with-reagent
+ - load-from-url (experimental)
 
 All in all I feel this is a nice showcase of what is possible with Scittle!
 Thanks to all library and tool builders who made it possible for me to throw
@@ -83,6 +84,8 @@ that I know of:
   * https://clojurescript.io/
   * Replete (iPhone app)
 
+('Ape' also refer to the fact that this can indeed be considered a poor copy or
+derivative of other people's hard work.)
 -->
   <head>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.css">
@@ -249,31 +252,40 @@ that I know of:
 
 (defonce external-sources (atom {}))
 
+(declare load-code)
+
 (defn load-from-url [url]
   "Experimental; necessarily asynchronous, so fetched code only becomes
-   available on reload!
+   available on reload, which is forced as soon as code is loaded (so, any code
+   before this invocation might be evaluated more than once).
    E.g. (load-from-url \"https://raw.githubusercontent.com/weavejester/medley/master/src/medley/core.cljc\")"
   (if-let [source (get @external-sources url)]
     (load-string source)
-    (-> (js/fetch url)
-        (.then #(.text %))
-        (.then (fn [source]
-                 (swap! external-sources assoc url source)
-                 (load-string source)
-                 (println "Loaded" url))))))
+    (do
+      (println "Loading" url "...")
+      (-> (js/fetch url)
+          (.then #(.text %))
+          (.then (fn [source]
+                   (swap! external-sources assoc url source)
+                   (load-string source)
+                   (println "Loaded" url)
+                   (load-code)))) ; a bit crude; let's see
+      (throw (ex-info "loading" {:loading-url url})))))
 
 (defn load-code []
   (let [c (code)]
     (try
       (-clear-output!)
       (let [value
-            (js/scittle.core.eval_string c)]
+            #_(js/scittle.core.eval_string c)
+            (load-string c)]
         (print-to-output (pr-str value)))
       (catch :default e
-        (println e)
-        (when-let [stack (.-stack e)]
-          (println stack))
-        (throw e)))))
+        (when-not (contains? (ex-data e) :loading-url)
+          (println e)
+          (when-let [stack (.-stack e)]
+            (println stack))
+          (throw e))))))
 
 (defn editor []
   [:div
