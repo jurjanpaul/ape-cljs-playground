@@ -49,7 +49,6 @@ Current annoyances
 Other wishes/TODOs (nothing planned):
  - history / undo + redo
  - on-screen footer keyboard with opening braces + other useful special chars
- - 'clear editor' button
  - multiple buffers
    (Hint: by saving the page multiple times to my iPhone's Home screen I already
    get multiple buffers for free!)
@@ -92,8 +91,12 @@ that I know of:
 derivative of other people's hard work.)
 -->
   <head>
+    <title>Away from Preferred Editor ClojureScript Playground</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="url" content="https://jurjanpaul.github.io/ape-cljs-playground">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.css">
     <style type="text/css">
       html, body, div, p, pre, h3, textarea {
@@ -143,13 +146,11 @@ derivative of other people's hard work.)
         overflow-y: scroll;
       }
 
-      .copy-to-clipboard {
-        margin: 4px;
-      }
-
       .page-source {
         border-style: solid;
         border-width: 1px;
+        margin: 1px;
+        padding: 1px;
       }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.min.js"></script>
@@ -248,6 +249,11 @@ derivative of other people's hard work.)
                  preloaded-code))
   (.init js/parinferCodeMirror @code-mirror "smart" {}))
 
+(defn clear-code []
+  (when (js/confirm "Really clear code buffer?")
+    (.setValue @code-mirror "")
+    (store-code "")))
+
 (defn -clear-output! []
   (reset! output "")
   (reset! reagent-component nil))
@@ -296,8 +302,11 @@ derivative of other people's hard work.)
 (defn editor []
   [:div
    [:h3
-   {:on-click toggle-page-source}
-    "ape-cljs-playground"]
+    "ape-cljs-playground "
+    [:button
+     {:style {:font-size "0.8rem", :margin "1px", :padding "0"}
+      :on-click toggle-page-source}
+     "</>"]]
    [:i "Away from Preferred Editor ClojureScript Playground"]
    (when @page-source
      [:div.page-source
@@ -315,9 +324,14 @@ derivative of other people's hard work.)
      (if (string/blank? @output)
        "Load"
        "Reload")]
-    [:button.copy-to-clipboard
-     {:on-click #(copy-to-clipboard (code))}
-     "Copy to clipboard"]]
+    [:button
+     {:style {:margin "1px"}
+      :on-click #(copy-to-clipboard (code))}
+     "Copy to clipboard"]
+    [:button
+     {:style {:margin "1px"}
+      :on-click clear-code}
+     "Clear code"]]
    (when-not (string/blank? @output)
      [:div
       [:h3 "Output"]
