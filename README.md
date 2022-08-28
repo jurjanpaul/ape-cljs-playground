@@ -1,6 +1,7 @@
 # ape-cljs-playground
-Away from Preferred Editor Clojure(Script) Playground
+## Away from Preferred Editor ClojureScript Playground
 
-(scratchpad in mobile device's browser)
+Write and evaluate ClojureScript in your mobile device's browser.
 
-index.html is all you need (including documentation) and is hosted at https://jurjanpaul.github.io/ape-cljs-playground
+index.html is all you need, including documentation.
+Host it yourself or simply use https://jurjanpaul.github.io/ape-cljs-playground
