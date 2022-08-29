@@ -336,7 +336,11 @@ derivative of other people's hard work.)
      [:div
       [:h3 "Output"]
       [:div.output
-       [:pre @output]]])
+       [:pre @output]]
+      [:button
+       {:style {:margin "1px"}
+        :on-click #(copy-to-clipboard @output)}
+       "Copy to clipboard"]])
    (when-let [component @reagent-component]
      [:div
       [:h3 "Render"]
