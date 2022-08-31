@@ -43,8 +43,7 @@ Currently provides
 Current annoyances
  - After (un)zooming&scrolling, the cursor position sometimes no longer
    corresponds to the actual insertion point;
- - Error logs don't provide position info (line and column);
- - Losing editor/viewport focus when deleting/commenting code.
+ - Cursor position gets out of focus when deleting/commenting code.
 
 Other wishes/TODOs (nothing planned):
  - history / undo + redo
@@ -64,7 +63,12 @@ Other wishes/TODOs (nothing planned):
  - upgrade to CodeMirror 6 (support for Parinfer seems to be a challenge still)
 
 API
- - everything that Scittle exposes
+ - everything that Scittle exposes, including:
+     - clojure.pprint as pprint
+     - clojure.string as string
+     - reagent.core as r
+     - reagent.dom as rdom
+     - sci.core as sci
  - render-with-reagent
  - load-from-url (experimental)
 
@@ -162,10 +166,13 @@ derivative of other people's hard work.)
     <script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/scittle@0.3.10/dist/scittle.reagent.js" type="application/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/scittle@0.3.10/dist/scittle.pprint.js" type="application/javascript"></script>
     <script type="application/x-scittle">
-(require '[clojure.string :as string]
+(require '[clojure.pprint :as pprint]
+         '[clojure.string :as string]
          '[reagent.core :as r]
-         '[reagent.dom :as rdom])
+         '[reagent.dom :as rdom]
+         '[sci.core :as sci])
 
 (def preloaded-code
   "(defn answer []
@@ -286,18 +293,14 @@ derivative of other people's hard work.)
 
 (defn load-code []
   (let [c (code)]
+    (-clear-output!)
     (try
-      (-clear-output!)
-      (let [value
-            #_(js/scittle.core.eval_string c)
-            (load-string c)]
+      (let [value (load-string c)]
         (print-to-output (pr-str value)))
-      (catch :default e
+      (catch ^:sci/error js/Error e
         (when-not (contains? (ex-data e) :loading-url)
-          (println e)
-          (when-let [stack (.-stack e)]
-            (println stack))
-          (throw e))))))
+          (println "Error:" (.-message e))
+          (run! println (-> (sci/stacktrace e) (sci/format-stacktrace))))))))
 
 (defn editor []
   [:div
