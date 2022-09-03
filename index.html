@@ -150,12 +150,17 @@ derivative of other people's hard work.)
 
       .output {
         font-family: "Source Code Pro", monospace;
-        padding: 4px 4px;
+        padding: 0.5em;
         padding-bottom: 1em;
         color: white;
-        background-color: darkslateblue;
+        background-color: #120754;
         font-size: small;
         overflow-y: scroll;
+        min-height: 10em;
+        border-style: inset;
+        border-width: 1px;
+        border-radius: 5px;
+        border-color: lightblue;
       }
 
       .page-source {
@@ -323,15 +328,13 @@ derivative of other people's hard work.)
    (when @page-source
      [:div
       {:style {:font-family "Source Code Pro, monospace"
-               :font-size "0.7rem"
+               :font-size "0.6rem"
                :margin-bottom "1em"}}
       [:pre
        {:style {:padding "0.5em"
-                ;:width "37rem"
-                :min-width "50em"
-                ;:max-width "37rem"
+                :min-width "40em"
                 :overflow "auto"
-                :border-width "2px"
+                :border-width "1px"
                 :border-style "solid"
                 :border-color "green"
                 :color "green"}}
@@ -367,11 +370,16 @@ derivative of other people's hard work.)
         :on-click #(copy-to-clipboard @output)}
        "Copy to clipboard"]])
    (when-let [component @reagent-component]
-     [:div
+     [:div {:style {:margin-bottom "2em"}}
       [:h3 "Render"]
-      (if (vector? component)
-        component
-        [component])])])
+      [:div {:style {:border-width "1px"
+                     :border-style "solid"
+                     :border-color "lightgray"
+                     :padding "1px"
+                     :border-radius "5px"}}
+       (if (vector? component)
+         component
+         [component])]])])
 
 (rdom/render [editor] (.getElementById js/document "editor"))
 (initialize-code-mirror)
