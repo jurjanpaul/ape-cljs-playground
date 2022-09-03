@@ -269,6 +269,9 @@ derivative of other people's hard work.)
                  preloaded-code))
   (.init js/parinferCodeMirror @code-mirror "smart" {}))
 
+(defn undo []
+  (.execCommand @code-mirror "undo"))
+
 (defn clear-code []
   (when (js/confirm "Really clear code buffer?")
     (.setValue @code-mirror "")
@@ -359,7 +362,9 @@ derivative of other people's hard work.)
     [:button
      {:style {:margin "1px"}
       :on-click clear-code}
-     "Clear code"]]
+     "Clear code"]
+    "|"
+    [:button {:on-click undo} "⎌"]]
    (when-not (string/blank? @output)
      [:div
       [:h3 "Output"]
