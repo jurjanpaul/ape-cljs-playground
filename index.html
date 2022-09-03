@@ -193,7 +193,7 @@ derivative of other people's hard work.)
   (->> js/Math.PI int (nth (iterate #(* % (inc %)) 1))))
 
 (defn the-answer []
-  [:div
+  [:div {:style {:font-family "Georgia"}}
    [:p \"The answer turns out to 🐝 ... \" (answer)]])
 
 (render-with-reagent the-answer)
@@ -281,6 +281,10 @@ derivative of other people's hard work.)
   (reset! output "")
   (reset! reagent-component nil))
 
+(defn scroll-output-into-focus! []
+  (let [dom-node (.getElementById js/document "output")]
+    (.scrollIntoView dom-node {"block" "end", "behavior" "smooth"})))
+
 ;; available to user (renders within div)
 (defn render-with-reagent [component]
   (reset! reagent-component component))
@@ -312,15 +316,14 @@ derivative of other people's hard work.)
     (-clear-output!)
     (try
       (let [value (load-string c)]
-        (print-to-output (pr-str value)))
+        (print-to-output (pr-str value))
+        (run! (js/setTimeout scroll-output-into-focus! 100)))
       (catch ^:sci/error js/Error e
         (when-not (contains? (ex-data e) :loading-url)
           (println "Error:" (.-message e))
           (run! println (-> (sci/stacktrace e) (sci/format-stacktrace))))))))
 
-(defn scroll-output-into-focus! []
-  (let [dom-node (.getElementById js/document "output")]
-    (.scrollIntoView dom-node {"block" "end", "behavior" "smooth"})))
+
 
 (defn editor []
   [:div
@@ -374,7 +377,6 @@ derivative of other people's hard work.)
       [:h3 "Output"]
       [:div {:id "output"}
        [:pre @output]]
-      (run! (js/setTimeout scroll-output-into-focus! 200))
       [:button
        {:style {:margin "1px"}
         :on-click #(copy-to-clipboard @output)}
