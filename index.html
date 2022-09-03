@@ -193,7 +193,7 @@ derivative of other people's hard work.)
   (->> js/Math.PI int (nth (iterate #(* % (inc %)) 1))))
 
 (defn the-answer []
-  [:div {:style {:font-family "Georgia"}}
+  [:div {:style {:font-family \"Georgia\"}}
    [:p \"The answer turns out to 🐝 ... \" (answer)]])
 
 (render-with-reagent the-answer)
