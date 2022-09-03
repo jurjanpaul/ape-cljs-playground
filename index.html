@@ -317,7 +317,7 @@ derivative of other people's hard work.)
     (try
       (let [value (load-string c)]
         (print-to-output (pr-str value))
-        (run! (js/setTimeout scroll-output-into-focus! 100)))
+        (js/setTimeout scroll-output-into-focus! 100))
       (catch ^:sci/error js/Error e
         (when-not (contains? (ex-data e) :loading-url)
           (println "Error:" (.-message e))
