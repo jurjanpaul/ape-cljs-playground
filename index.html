@@ -106,7 +106,7 @@ derivative of other people's hard work.)
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&family=Source+Code+Pro&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.css">
     <style type="text/css">
-      html, body, div, p, pre, h3, textarea {
+      html, body, div, p, span, pre, h3, textarea {
         box-sizing: border-box;
         margin: 0;
         padding: 0;
@@ -135,6 +135,7 @@ derivative of other people's hard work.)
         border: 1px solid #aaa;
         padding: 1px;
         padding-bottom: 1em;
+        margin-bottom: 2px;
       }
 
       .CodeMirror, .CodeMirror * {
@@ -168,6 +169,17 @@ derivative of other people's hard work.)
         border-width: 1px;
         padding: 0.5em;
         margin-bottom: 0.5em;
+      }
+
+      .small-button {
+        padding: 0 0.5em 0 0.5em;
+        border-right-style: dotted;
+        border-right-width: 1px;
+      }
+
+      .small-button.no-border {
+        border-right-style: none;
+        border-right-width: 0;
       }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.min.js"></script>
@@ -272,6 +284,9 @@ derivative of other people's hard work.)
 (defn undo []
   (.execCommand @code-mirror "undo"))
 
+(defn redo []
+  (.execCommand @code-mirror "redo"))
+
 (defn clear-code []
   (when (js/confirm "Really clear code buffer?")
     (.setValue @code-mirror "")
@@ -323,8 +338,6 @@ derivative of other people's hard work.)
           (println "Error:" (.-message e))
           (run! println (-> (sci/stacktrace e) (sci/format-stacktrace))))))))
 
-
-
 (defn editor []
   [:div
    [:h3 "🦧 ape-cljs-playground "]
@@ -371,7 +384,11 @@ derivative of other people's hard work.)
       :on-click clear-code}
      "Clear code"]
     "|"
-    [:button {:on-click undo} "⎌"]]
+    [:span {:style {:border-radius "4px"
+                    :background-color "lightgrey"
+                    :cursor "pointer"}}
+     [:span.small-button {:on-click undo} "↶"]
+     [:span.small-button.no-border {:on-click redo} "↷"]]]
    (when-not (string/blank? @output)
      [:div
       [:h3 "Output"]
