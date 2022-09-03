@@ -319,7 +319,7 @@ derivative of other people's hard work.)
   [:div
    [:h3 "🦧 ape-cljs-playground "]
    [:p
-    [:span "Away from Preferred Editor ClojureScript Playground"]
+    [:span [:i "Away from Preferred Editor"] " ClojureScript Playground"]
     " "
     [:button
      {:style {:margin-left "2em", :margin-bottom "0.5em"}
@@ -372,11 +372,7 @@ derivative of other people's hard work.)
    (when-let [component @reagent-component]
      [:div {:style {:margin-bottom "2em"}}
       [:h3 "Render"]
-      [:div {:style {:border-width "1px"
-                     :border-style "solid"
-                     :border-color "lightgray"
-                     :padding "1px"
-                     :border-radius "5px"}}
+      [:div
        (if (vector? component)
          component
          [component])]])])
