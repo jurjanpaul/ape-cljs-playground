@@ -170,17 +170,6 @@ derivative of other people's hard work.)
         padding: 0.5em;
         margin-bottom: 0.5em;
       }
-
-      .small-button {
-        padding: 0 0.5em 0 0.5em;
-        border-right-style: dotted;
-        border-right-width: 1px;
-      }
-
-      .small-button.no-border {
-        border-right-style: none;
-        border-right-width: 0;
-      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/addon/edit/matchbrackets.js"></script>
@@ -383,12 +372,8 @@ derivative of other people's hard work.)
      {:style {:margin "1px"}
       :on-click clear-code}
      "Clear code"]
-    "|"
-    [:span {:style {:border-radius "4px"
-                    :background-color "lightgrey"
-                    :cursor "pointer"}}
-     [:span.small-button {:on-click undo} "↶"]
-     [:span.small-button.no-border {:on-click redo} "↷"]]]
+    [:span {:on-click undo} "↩️"]
+    [:span {:on-click redo} "↪️"]]
    (when-not (string/blank? @output)
      [:div
       [:h3 "Output"]
