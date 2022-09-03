@@ -117,10 +117,6 @@ derivative of other people's hard work.)
         font-family: "Open Sans", sans-serif;
       }
 
-      pre {
-       font-family: "Source Code Pro", monospace;
-      }
-
       h3 {
         margin-top: 1em;
       }
@@ -139,6 +135,11 @@ derivative of other people's hard work.)
         border: 1px solid #aaa;
         padding: 1px;
         padding-bottom: 1em;
+      }
+
+      .CodeMirror, .CodeMirror * {
+         font-family: "Source Code Pro", monospace;
+         font-size: 0.8rem;
       }
 
       .CodeMirror-matchingbracket {
@@ -188,7 +189,7 @@ derivative of other people's hard work.)
 
 (defn the-answer []
   [:div
-   [:p \"The answer is ... \" (answer)]])
+   [:p \"The answer turns out to 🐝 ... \" (answer)]])
 
 (render-with-reagent the-answer)
 
@@ -311,7 +312,7 @@ derivative of other people's hard work.)
 
 (defn editor []
   [:div
-   [:h3 "ape-cljs-playground "]
+   [:h3 "🦧 ape-cljs-playground "]
    [:p
     [:span "Away from Preferred Editor ClojureScript Playground"]
     " "
@@ -320,8 +321,21 @@ derivative of other people's hard work.)
       :on-click toggle-page-source}
      "page source with documentation " (if @page-source "▽" "▷")]]
    (when @page-source
-     [:div.page-source
-      [:pre @page-source]])
+     [:div
+      {:style {:font-family "Source Code Pro, monospace"
+               :font-size "0.7rem"
+               :margin-bottom "1em"}}
+      [:pre
+       {:style {:padding "0.5em"
+                ;:width "37rem"
+                :min-width "50em"
+                ;:max-width "37rem"
+                :overflow "auto"
+                :border-width "2px"
+                :border-style "solid"
+                :border-color "green"
+                :color "green"}}
+       @page-source]])
    [:textarea
     {:id "code-input"
      :cols 120
