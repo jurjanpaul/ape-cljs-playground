@@ -148,7 +148,7 @@ derivative of other people's hard work.)
         background-color: lightgray;        ;
       }
 
-      .output {
+      #output {
         font-family: "Source Code Pro", monospace;
         padding: 0.5em;
         padding-bottom: 1em;
@@ -318,6 +318,10 @@ derivative of other people's hard work.)
           (println "Error:" (.-message e))
           (run! println (-> (sci/stacktrace e) (sci/format-stacktrace))))))))
 
+(defn scroll-output-into-focus! []
+  (let [dom-node (.getElementById js/document "output")]
+    (.scrollIntoView dom-node {"block" "end", "behavior" "smooth"})))
+
 (defn editor []
   [:div
    [:h3 "🦧 ape-cljs-playground "]
@@ -368,8 +372,9 @@ derivative of other people's hard work.)
    (when-not (string/blank? @output)
      [:div
       [:h3 "Output"]
-      [:div.output
+      [:div {:id "output"}
        [:pre @output]]
+      (run! (js/setTimeout scroll-output-into-focus! 200))
       [:button
        {:style {:margin "1px"}
         :on-click #(copy-to-clipboard @output)}
