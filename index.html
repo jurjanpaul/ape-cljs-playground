@@ -39,6 +39,7 @@ Currently provides
    (not al all essential, but nice as long as it's feasible in light of the
    remaining wishes)
  - trivial, but very helpful: can be saved as an 'app' on phone's home screen.
+ - history / undo + redo
 
 Current annoyances
  - After (un)zooming&scrolling, the cursor position sometimes no longer
@@ -46,7 +47,6 @@ Current annoyances
  - Cursor position gets out of focus when deleting/commenting code.
 
 Other wishes/TODOs (nothing planned):
- - history / undo + redo
  - on-screen footer keyboard with opening braces + other useful special chars
  - multiple buffers
    (Hint: by saving the page multiple times to my iPhone's Home screen I already
@@ -113,7 +113,7 @@ derivative of other people's hard work.)
       }
 
       body {
-        padding: 1px 1rem;
+        padding: 1px 4px;
         font-family: "Open Sans", sans-serif;
       }
 
@@ -236,6 +236,10 @@ derivative of other people's hard work.)
   (when-let [cm @code-mirror]
     (.getValue cm)))
 
+(defn history []
+  (when-let [cm @code-mirror]
+    (.getHistory (.getDoc cm))))
+
 (defn copy-to-clipboard [s]
   (let [temp-textarea (js/document.createElement "textarea")]
     (.appendChild js/document.body temp-textarea)
@@ -245,15 +249,53 @@ derivative of other people's hard work.)
     (.removeChild js/document.body temp-textarea)))
 
 (def local-store-code-key "buffer-1")
+(def local-store-history-key (str local-store-code-key ".history"))
+
+(defn local-storage []
+  (.-localStorage js/window))
 
 (defn stored-code []
-  (.getItem (.-localStorage js/window) local-store-code-key))
+  (.getItem (local-storage) local-store-code-key))
 
 (defn store-code [code]
-  (.setItem (.-localStorage js/window) local-store-code-key code))
+  (.setItem (local-storage) local-store-code-key code))
+
+(defn stored-history []
+  (js/JSON.parse (.getItem (local-storage) local-store-history-key)))
+
+(defn store-history [history]
+  (.setItem (local-storage)
+            local-store-history-key
+            (js/JSON.stringify history)))
+
+(def store-history-timeout-id (atom nil))
+
+(defn trim-history [history]
+  (-> history
+      js->clj
+      (update "done" #(take-last 200 %))
+      (update "undone" #(take-last 200 %))
+      clj->js)
+  #_history)
+
+(defn planned-store-history []
+  (when @store-history-timeout-id
+    (js/clearTimeout @store-history-timeout-id)
+    (reset! store-history-timeout-id nil))
+  (-> (history)
+      trim-history
+      store-history))
+
+(defn plan-store-history []
+  (when @store-history-timeout-id
+    (js/clearTimeout @store-history-timeout-id)
+    (reset! store-history-timeout-id nil))
+  (reset! store-history-timeout-id
+          (js/setTimeout planned-store-history 400)))
 
 (defn code-input-changed [_event]
-  (-> (code) store-code))
+  (-> (code) store-code)
+  (plan-store-history))
 
 (defn initialize-code-mirror []
   (reset! code-mirror
@@ -268,6 +310,8 @@ derivative of other people's hard work.)
   (.setValue @code-mirror
              (or (stored-code)
                  preloaded-code))
+  (when-let [history (stored-history)]
+    (.setHistory (.getDoc @code-mirror) history))
   (.init js/parinferCodeMirror @code-mirror "smart" {}))
 
 (defn undo []
