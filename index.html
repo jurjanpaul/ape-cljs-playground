@@ -128,6 +128,7 @@ derivative of other people's hard work.)
 
       .CodeMirror {
         box-sizing: border-box;
+        resize: both;
         border: 1px solid #aaa;
         padding: 1px;
         padding-bottom: 1em;
@@ -158,6 +159,7 @@ derivative of other people's hard work.)
         border-width: 1px;
         border-radius: 5px;
         border-color: lightblue;
+        resize: both;
       }
 
       .page-source {
@@ -304,6 +306,7 @@ derivative of other people's hard work.)
                          #js {"mode" "clojure"
                               "lineNumbers" true
                               "matchBrackets" true}))
+  (.init js/parinferCodeMirror @code-mirror "smart" {})                              
   (.on @code-mirror
        "change"
        (fn [_ change] (code-input-changed change)))
@@ -311,8 +314,7 @@ derivative of other people's hard work.)
              (or (stored-code)
                  preloaded-code))
   (when-let [history (stored-history)]
-    (.setHistory (.getDoc @code-mirror) history))
-  (.init js/parinferCodeMirror @code-mirror "smart" {}))
+    (.setHistory (.getDoc @code-mirror) history)))
 
 (defn undo []
   (.execCommand @code-mirror "undo"))
