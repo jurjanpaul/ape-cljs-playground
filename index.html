@@ -178,11 +178,11 @@ derivative of other people's hard work.)
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/mode/clojure/clojure.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/parinfer@3.12.0/parinfer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/parinfer-codemirror@1.4.2/parinfer-codemirror.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/scittle@0.3.10/dist/scittle.js" type="application/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/scittle@0.5.13/dist/scittle.js" type="application/javascript"></script>
     <script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/scittle@0.3.10/dist/scittle.reagent.js" type="application/javascript"></script>
-    <script src="https://cdn.jsdelivr.net/npm/scittle@0.3.10/dist/scittle.pprint.js" type="application/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/scittle@0.5.13/dist/scittle.reagent.js" type="application/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/scittle@0.5.13/dist/scittle.pprint.js" type="application/javascript"></script>
     <script type="application/x-scittle">
 (require '[cljs.pprint :as pprint]
          '[clojure.string :as string]
@@ -210,7 +210,7 @@ derivative of other people's hard work.)
 
 (def page-source (r/atom nil))
 (def reagent-component (r/atom nil))
-(def output (r/atom ""))
+(def output (r/atom nil))
 (defn print-to-output [s]
   (swap! output str s "\n"))
 
@@ -272,20 +272,11 @@ derivative of other people's hard work.)
 
 (def store-history-timeout-id (atom nil))
 
-(defn trim-history [history]
-  (-> history
-      js->clj
-      (update "done" #(take-last 200 %))
-      (update "undone" #(take-last 200 %))
-      clj->js)
-  #_history)
-
 (defn planned-store-history []
   (when @store-history-timeout-id
     (js/clearTimeout @store-history-timeout-id)
     (reset! store-history-timeout-id nil))
   (-> (history)
-      trim-history
       store-history))
 
 (defn plan-store-history []
@@ -306,7 +297,7 @@ derivative of other people's hard work.)
                          #js {"mode" "clojure"
                               "lineNumbers" true
                               "matchBrackets" true}))
-  (.init js/parinferCodeMirror @code-mirror "smart" {})                              
+  (.init js/parinferCodeMirror @code-mirror "smart" {})
   (.on @code-mirror
        "change"
        (fn [_ change] (code-input-changed change)))
@@ -364,14 +355,38 @@ derivative of other people's hard work.)
 (defn load-code []
   (let [c (code)]
     (-clear-output!)
-    (try
-      (let [value (load-string c)]
-        (print-to-output (pr-str value))
-        (js/setTimeout scroll-output-into-focus! 100))
-      (catch ^:sci/error js/Error e
-        (when-not (contains? (ex-data e) :loading-url)
-          (println "Error:" (.-message e))
-          (run! println (-> (sci/stacktrace e) (sci/format-stacktrace))))))))
+    (js/setTimeout
+     (fn []
+       (try
+         (let [value (load-string c)]
+           (print-to-output (pr-str value)))
+         (catch ^:sci/error js/Error e
+           (when-not (contains? (ex-data e) :loading-url)
+             (println "Error:" (.-message e))
+             (run! println (-> (sci/stacktrace e) (sci/format-stacktrace))))))
+       (js/setTimeout scroll-output-into-focus! 100))
+       200)))
+
+(defn render-output []
+  (when-not (nil? @output)
+    [:div {:style {:margin-top "1em"}}
+     [:h3 "Output"]
+     [:div {:id "output"}
+      [:pre {:id "output-text"} @output]]
+     [:button
+      {:style {:margin "1px"}
+       :on-click #(copy-to-clipboard @output)}
+      "Copy to clipboard"]]))
+
+(defn render-reagent-component []
+  (when-let [component @reagent-component]
+    [:div {:style {:margin-top "1em"
+                   :margin-bottom "2em"}}
+     [:h3 "Render"]
+     [:div
+      (if (vector? component)
+        component
+        [component])]]))
 
 (defn editor []
   [:div
@@ -420,23 +435,8 @@ derivative of other people's hard work.)
      "Clear code"]
     [:span.pointer {:on-click undo} "↩️"]
     [:span.pointer {:on-click redo} "↪️"]]
-   (when-not (string/blank? @output)
-     [:div {:style {:margin-top "1em"}}
-      [:h3 "Output"]
-      [:div {:id "output"}
-       [:pre @output]]
-      [:button
-       {:style {:margin "1px"}
-        :on-click #(copy-to-clipboard @output)}
-       "Copy to clipboard"]])
-   (when-let [component @reagent-component]
-     [:div {:style {:margin-top "1em"
-                    :margin-bottom "2em"}}
-      [:h3 "Render"]
-      [:div
-       (if (vector? component)
-         component
-         [component])]])])
+   [render-output]
+   [render-reagent-component]])
 
 (rdom/render [editor] (.getElementById js/document "editor"))
 (initialize-code-mirror)
