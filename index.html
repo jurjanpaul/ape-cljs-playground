@@ -179,11 +179,12 @@ derivative of other people's hard work.)
     <!-- <script src="https://cdn.jsdelivr.net/npm/parinfer@3.12.0/parinfer.min.js"></script> -->
     <!-- <script src="https://cdn.jsdelivr.net/npm/parinfer-codemirror@1.4.2/parinfer-codemirror.min.js"></script> -->
 
-    <script src="https://cdn.jsdelivr.net/npm/scittle@0.5.13/dist/scittle.js" type="application/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/scittle@0.5.14/dist/scittle.js" type="application/javascript"></script>
     <script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/scittle@0.5.13/dist/scittle.reagent.js" type="application/javascript"></script>
-    <script src="https://cdn.jsdelivr.net/npm/scittle@0.5.13/dist/scittle.pprint.js" type="application/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/scittle@0.5.14/dist/scittle.reagent.js" type="application/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/scittle@0.5.14/dist/scittle.re-frame.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/scittle@0.5.14/dist/scittle.pprint.js" type="application/javascript"></script>
     <script type="application/x-scittle">
 (require '[cljs.pprint :as pprint]
          '[clojure.string :as string]
@@ -446,6 +447,11 @@ derivative of other people's hard work.)
   </head>
   <body>
     <div id="editor"></div>
+<!--
+    Leaving the following here for now; haven't yet figured out how/why
+    https://shaunlebron.github.io/parinfer/demo seems to behave better w.r.t. keeping the focus on the cursor.
+    Simply using exact the same js sources, like here below, does not help though.
+
     <script src="https://shaunlebron.github.io/parinfer/codemirror/lib/codemirror.js"></script>
     <script src="https://shaunlebron.github.io/parinfer/codemirror/addon/selection/active-line.js"></script>
     <script src="https://shaunlebron.github.io/parinfer/codemirror/addon/edit/matchbrackets.js"></script>
@@ -454,5 +460,11 @@ derivative of other people's hard work.)
     <script src="https://shaunlebron.github.io/parinfer/js/lib/scrollMonitor.js"></script>
     <script src="https://shaunlebron.github.io/parinfer/parinfer.js"></script>
     <script src="https://shaunlebron.github.io/parinfer/js/lib/parinfer-codemirror.js"></script>
+-->
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/addon/edit/matchbrackets.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/mode/clojure/clojure.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/parinfer@3.12.0/parinfer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/parinfer-codemirror@1.4.2/parinfer-codemirror.min.js"></script>
   </body>
 </html>
