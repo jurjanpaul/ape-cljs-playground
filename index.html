@@ -203,7 +203,7 @@ derivative of other people's hard work.)
 
 (render-with-reagent the-answer)
 
-(load-from-url \"https://raw.githubusercontent.com/weavejester/medley/master/src/medley/core.cljc\")
+(load-from-url \"https://raw.githubusercontent.com/weavejester/medley/1.4.0/src/medley/core.cljc\") ; Don't yet know why 1.5.0 does not work
 (pr (medley.core/index-by :id [{:id 1, :value :a} {:id 2, :value :b}]))
 
 (answer)
