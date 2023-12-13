@@ -520,6 +520,7 @@ function fixText(state, changes) {
     // [JPM] skipping this step for now
     // Update scroll position
     //cm.scrollTo(scroller.scrollLeft, scroller.scrollTop);
+    cm.scrollIntoView();
   }
 
   // Clear or add new marks
