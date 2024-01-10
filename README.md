@@ -9,3 +9,6 @@ need is [index.html](https://github.com/jurjanpaul/ape-cljs-playground/blob/main
 (which includes some documentation as inline comment). Small exception: I forked and tweaked the [parinfer-codemirror.js](https://github.com/shaunlebron/parinfer-codemirror) dependency to slightly improve scrolling behaviour.
 
 Host it yourself or simply use https://jurjanpaul.github.io/ape-cljs-playground.
+
+
+![screenshot](screenshot.jpg)
