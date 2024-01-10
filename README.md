@@ -4,7 +4,7 @@
 Write and evaluate ClojureScript in your mobile device's browser.
 Code is stored in your browser's localStorage. Parentheses are kept balanced by Parinfer.
 
-Powered by the amazing [Scittle](https://babashka.org/scittle/), all you really
+Powered by the amazing [Scittle](https://babashka.org/scittle/) (as well as Reagent and CodeMirror), all you really
 need is [index.html](https://github.com/jurjanpaul/ape-cljs-playground/blob/main/index.html)
 (which includes some documentation as inline comment). Small exception: I forked and tweaked the [parinfer-codemirror.js](https://github.com/shaunlebron/parinfer-codemirror) dependency to slightly improve scrolling behaviour.
 
