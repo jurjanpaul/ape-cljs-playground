@@ -1,1 +1,2 @@
-index.html linguist-language=ClojureScript
+index.html linguist-language=Clojure
+*.js linguist-detectable=false
