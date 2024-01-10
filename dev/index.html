@@ -4,7 +4,9 @@ ape-cljs-playground - Away from Preferred Editor ClojureScript Playground
 
 This page allows you to simply try out Clojure forms on your mobile device in
 moments when you don't have your laptop/desktop with preferred text editor at
-hand.
+hand. (You can also, for example, use it to write and run solutions for all of
+the Advent of Code puzzles, https://adventofcode.com/, ... I did for the 2023
+edition.)
 
 Therefore, this little project aims to provide mobile-friendly Clojure editing.
 To me this means (at least):
@@ -27,7 +29,7 @@ https://github.com/jurjanpaul/ape-cljs-playground.
 The page is hosted at https://jurjanpaul.github.io/ape-cljs-playground.
 
 Currently provides
- - run ClojureScript (per SCI / Scittle)
+ - run ClojureScript (per SCI / Scittle, https://github.com/babashka/scittle)
    - includes macro support out-of-the-box (might require an extra reload)
  - Parinfer (per parinfer-codemirror)
  - persistence (per browser's localStorage)
@@ -38,19 +40,31 @@ Currently provides
  - maximum portability by being contained in a single HTML file
    (not at all essential, but nice as long as it's feasible in light of the
    remaining wishes)
- - trivial, but very helpful: can be saved as an 'app' on phone's home screen.
+   => Well, this is no longer really true anymore now that I'm depending on
+      a tweaked version of parinfer-codemirror.js to improve scrolling
+      behaviour.
+ - trivial, but very helpful: can be saved as an 'app' on phone's home screen,
+   each 'app' automagically getting its own localStorage!
  - history / undo + redo
 
 Current annoyances
  - After (un)zooming&scrolling, the cursor position sometimes no longer
    corresponds to the actual insertion point;
+   => Unfortunately, I still haven't figured out how to deal with this,
+   other than:
+    - zooming out;
+    - selecting another page element;
+    - tilting the phone;
+    - reloading the entire page...
  - Cursor position being scrolled out of focus when deleting/commenting code.
+   => Improved the situation  w.r.t. vertical scrolling somewhat by tweaking
+      parinfer-codemirror.js
 
 Other wishes/TODOs (nothing planned):
  - on-screen footer keyboard with opening braces + other useful special chars
  - multiple buffers
-   (Hint: by saving the page multiple times to my iPhone's Home screen I already
-   get multiple buffers for free!)
+   (Hint: by saving the page multiple times to my iPhone's Home screen I
+   already get multiple buffers for free!)
  - improved styling for mobile (just zoom and swipe/scroll a lot for now!);
  - linting
  - allow fetching existing code (gist) from url
@@ -60,7 +74,8 @@ Other wishes/TODOs (nothing planned):
  - add deps (seems hard/hardly possible)
  - separate Scittle script's namespace from user entered code's namespace
  - save to gist or ... ?
- - upgrade to CodeMirror 6 (support for Parinfer seems to be a challenge still)
+ - upgrade to CodeMirror 6 (support for Parinfer seems to be a challenge
+   still)
 
 API
  - everything that Scittle exposes, including:
@@ -75,10 +90,10 @@ All in all I feel this is a nice showcase of what is possible with Scittle!
 Thanks to all library and tool builders who made it possible for me to throw
 this together so lazily!
 
-Feel free to customize and extend this file as desired. Of course, I would like
-to hear if this turns out helpful to you in any way.
+Feel free to customize and extend this file as desired. Of course, I would
+like to hear if this turns out helpful to you in any way.
 
-  Jurjan-Paul Medema, August 2022
+  Jurjan-Paul Medema
   Github: jurjanpaul
   Twitter: @jurjanpaul
   Clojurians Slack: @jurjanpaul
@@ -88,7 +103,9 @@ that I know of:
   * http://app.klipse.tech/
   * https://borkdude.github.io/sci.web/
   * https://clojurescript.io/
+  * https://nextjournal.github.io/clojure-mode/#try-it
   * https://oakes.github.io/paren-soup/
+  * https://squint-cljs.github.io/squint/
   * Replete (iPhone app)
 
 ('Ape' also refers to the fact that this can indeed be considered a poor copy or
@@ -173,12 +190,6 @@ derivative of other people's hard work.)
         cursor: pointer;
       }
     </style>
-    <!-- <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.min.js"></script> -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/addon/edit/matchbrackets.js"></script> -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/mode/clojure/clojure.js"></script> -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/parinfer@3.12.0/parinfer.min.js"></script> -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/parinfer-codemirror@1.4.2/parinfer-codemirror.min.js"></script> -->
-
     <script src="https://cdn.jsdelivr.net/npm/scittle@0.5.14/dist/scittle.js" type="application/javascript"></script>
     <script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
@@ -447,25 +458,11 @@ derivative of other people's hard work.)
   </head>
   <body>
     <div id="editor"></div>
-<!--
-    Leaving the following here for now; haven't yet figured out how/why
-    https://shaunlebron.github.io/parinfer/demo seems to behave better w.r.t. keeping the focus on the cursor.
-    Simply using the exact same js sources, like here below, does not help though.
-
-    <script src="https://shaunlebron.github.io/parinfer/codemirror/lib/codemirror.js"></script>
-    <script src="https://shaunlebron.github.io/parinfer/codemirror/addon/selection/active-line.js"></script>
-    <script src="https://shaunlebron.github.io/parinfer/codemirror/addon/edit/matchbrackets.js"></script>
-    <script src="https://shaunlebron.github.io/parinfer/codemirror/mode/clojure/clojure.js"></script>
-    <script src="https://shaunlebron.github.io/parinfer/codemirror/mode/clojure/clojure-parinfer.js"></script>
-    <script src="https://shaunlebron.github.io/parinfer/js/lib/scrollMonitor.js"></script>
-    <script src="https://shaunlebron.github.io/parinfer/parinfer.js"></script>
-    <script src="https://shaunlebron.github.io/parinfer/js/lib/parinfer-codemirror.js"></script>
--->
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/addon/edit/matchbrackets.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/mode/clojure/clojure.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/parinfer@3.12.0/parinfer.min.js"></script>
     <!-- <script src="https://cdn.jsdelivr.net/npm/parinfer-codemirror@1.4.2/parinfer-codemirror.min.js"></script> -->
-    <script src="parinfer-codemirror.js" type="application/javascript"></script> <!-- tweaked version w.r.t. scrolling -->
+    <script src="lib/parinfer-codemirror.js" type="application/javascript"></script> <!-- tweaked version w.r.t. scrolling -->
   </body>
 </html>
