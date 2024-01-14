@@ -134,6 +134,11 @@ derivative of other people's hard work.)
         font-family: "Open Sans", sans-serif;
       }
 
+      button {
+        border-radius: 4px;
+        padding: 2px 4px 2px 4px;
+      }
+
       .parinfer-error {
         background: #FFBEBE;
         color: black !important;
@@ -261,13 +266,42 @@ derivative of other people's hard work.)
     (set! (.-value temp-textarea) s)
     (.select temp-textarea)
     (js/document.execCommand "copy")
-    (.removeChild js/document.body temp-textarea)))
+    (.removeChild js/document.body temp-textarea)
+    nil))
 
 (def local-store-code-key "buffer-1")
 (def local-store-history-key (str local-store-code-key ".history"))
 
 (defn local-storage []
   (.-localStorage js/window))
+
+(defn encode [code]
+  (-> code
+      js/encodeURIComponent
+      js/unescape
+      js/btoa))
+
+(defn decode [coded]
+  (-> coded
+      js/atob
+      js/escape
+      js/decodeURIComponent))
+
+(defn get-src []
+  (let [url (js/URL. js.window.location.href)]
+    (.get (.-searchParams url) "src")))
+
+(defn share []
+  (let [coded (encode (code))
+        url (js/URL. js/window.location.href)]
+    (.set (.-searchParams url) "src" coded)
+    (.pushState js/history {} "" (str url))
+    (copy-to-clipboard js/window.location.href)))
+    ;(println (decode (get-src js/window.location.href)))))
+
+(defn url-stored-code []
+  (when-let [src (get-src)]
+    (decode src)))
 
 (defn stored-code []
   (.getItem (local-storage) local-store-code-key))
@@ -315,7 +349,8 @@ derivative of other people's hard work.)
        "change"
        (fn [_ change] (code-input-changed change)))
   (.setValue @code-mirror
-             (or (stored-code)
+             (or (url-stored-code)
+                 (stored-code)
                  preloaded-code))
   (when-let [history (stored-history)]
     (.setHistory (.getDoc @code-mirror) history)))
@@ -402,16 +437,36 @@ derivative of other people's hard work.)
         [component])]]))
 
 
+(defn github-link []
+  [:a {:class "github-button"
+       :href "https://github.com/jurjanpaul/ape-cljs-playground"
+       :data-icon="octicon-repo-forked"
+       :aria-label="Fork jurjanpaul/ape-cljs-playground on GitHub"}
+   ""])
+
 (defn editor []
   [:div
-   [:h3 "🦧 ape-cljs-playground "]
+   [:div
+    {:style {:display "flex"}}
+    [:div
+      [:h3 "🦧 ape-cljs-playground "]]
+    [:div
+     {:style {:display "flex"
+              :position "absolute"
+              :right "0px"
+              :top "0px"
+              :margin-top "0.5em"}}
+     [:span {:style {:padding-top "1px"}}
+      [github-link]]
+     [:button
+      {:style {:margin-left "4px"
+               :margin-right "4px"
+               :margin-bottom "0.5em"}
+       :on-click toggle-page-source}
+      "source with docs " (if @page-source "▽" "▷")]]]
    [:p
-    [:span [:i "Away from Preferred Editor"] " ClojureScript Playground"]
-    " "
-    [:button
-     {:style {:margin-left "2em", :margin-bottom "0.5em"}
-      :on-click toggle-page-source}
-     "page source with documentation " (if @page-source "▽" "▷")]]
+    {:style {:font-size "0.9em"}}
+    [:span [:i "Away from Preferred Editor"] " ClojureScript Playground"]]
    (when @page-source
      [:div
       {:style {:font-family "Source Code Pro, monospace"
@@ -429,7 +484,7 @@ derivative of other people's hard work.)
    [:textarea
     {:id "code-input"
      :cols 120
-     :rows 20
+     :rows 22
      :onChange code-input-changed}
     (or (.getItem (.-localStorage js/window) "code")
         preloaded-code)]
@@ -447,8 +502,12 @@ derivative of other people's hard work.)
      {:style {:margin "1px"}
       :on-click clear-code}
      "Clear code"]
-    [:span.pointer {:on-click undo} "↩️"]
-    [:span.pointer {:on-click redo} "↪️"]]
+    [:span.pointer {:style {:margin "1px"}
+                    :on-click undo}
+                   "↩️"]
+    [:span.pointer {:style {:margin "1px"}
+                    :on-click redo}
+                   "↪️"]]
    [render-output]
    [render-reagent-component]])
 
@@ -464,5 +523,6 @@ derivative of other people's hard work.)
     <script src="https://cdn.jsdelivr.net/npm/parinfer@3.12.0/parinfer.min.js"></script>
     <!-- <script src="https://cdn.jsdelivr.net/npm/parinfer-codemirror@1.4.2/parinfer-codemirror.min.js"></script> -->
     <script src="lib/parinfer-codemirror.js" type="application/javascript"></script> <!-- tweaked version w.r.t. scrolling -->
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
   </body>
 </html>
