@@ -123,7 +123,7 @@ derivative of other people's hard work.)
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&family=Source+Code+Pro&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.css">
     <style type="text/css">
-      html, body, div, p, span, pre, h3, textarea {
+      * {
         box-sizing: border-box;
         margin: 0;
         padding: 0;
@@ -269,12 +269,6 @@ derivative of other people's hard work.)
     (.removeChild js/document.body temp-textarea)
     nil))
 
-(def local-store-code-key "buffer-1")
-(def local-store-history-key (str local-store-code-key ".history"))
-
-(defn local-storage []
-  (.-localStorage js/window))
-
 (defn encode [code]
   ;; Considered using Compression Streams API to decrease URL size, but decided that
   ;; is probably still too new to rely on its presence on all devices.
@@ -305,18 +299,32 @@ derivative of other people's hard work.)
   (when-let [src (get-src)]
     (decode src)))
 
+(def default-local-store-code-key "buffer-1")
+
+(def local-store-code-key
+  (atom default-local-store-code-key))
+
+(defn local-store-history-key []
+  (str @local-store-code-key ".history"))
+
+(defn local-storage []
+  (.-localStorage js/window))
+
 (defn stored-code []
-  (.getItem (local-storage) local-store-code-key))
+  (.getItem (local-storage) @local-store-code-key))
 
 (defn store-code [code]
-  (.setItem (local-storage) local-store-code-key code))
+  (.setItem (local-storage)
+            @local-store-code-key
+            code))
 
 (defn stored-history []
-  (js/JSON.parse (.getItem (local-storage) local-store-history-key)))
+  (js/JSON.parse (.getItem (local-storage)
+                           (local-store-history-key))))
 
 (defn store-history [history]
   (.setItem (local-storage)
-            local-store-history-key
+            (local-store-history-key)
             (js/JSON.stringify history)))
 
 (def store-history-timeout-id (atom nil))
@@ -339,6 +347,25 @@ derivative of other people's hard work.)
   (-> (code) store-code)
   (plan-store-history))
 
+(defn determine-initial-code []
+  (if-let [url-embedded (url-embedded-code)]
+    (do
+      (reset! local-store-code-key
+              (str "buffer-" (hash url-embedded))) ; Clojure's hash seems ok for now?!
+      (let [locally-stored (stored-code)
+            keep-local?
+            (and locally-stored
+                 (or (= locally-stored url-embedded)
+                     (js/confirm "Keep previous changes for this URL?")))]
+        (if keep-local?
+          locally-stored
+          (do
+            (store-history "")
+            (store-code url-embedded)
+            url-embedded))))
+    (or (stored-code)
+        preloaded-code)))
+
 (defn initialize-code-mirror []
   (reset! code-mirror
           (.fromTextArea js/CodeMirror
@@ -351,9 +378,7 @@ derivative of other people's hard work.)
        "change"
        (fn [_ change] (code-input-changed change)))
   (.setValue @code-mirror
-             (or (url-embedded-code)
-                 (stored-code)
-                 preloaded-code))
+             (determine-initial-code))
   (when-let [history (stored-history)]
     (.setHistory (.getDoc @code-mirror) history)))
 
@@ -425,7 +450,8 @@ derivative of other people's hard work.)
       [:pre {:id "output-text"} @output]]
      [:button
       {:style {:margin "1px"}
-       :on-click #(copy-to-clipboard @output)}
+       :on-click #(do (copy-to-clipboard @output)
+                      (js/alert "Output copied to clipboard."))}
       "Copy to clipboard"]]))
 
 (defn render-reagent-component []
@@ -438,12 +464,10 @@ derivative of other people's hard work.)
         component
         [component])]]))
 
-
 (defn github-link []
   [:a {:class "github-button"
        :href "https://github.com/jurjanpaul/ape-cljs-playground"
-       :data-icon="octicon-repo-forked"
-       :aria-label="Fork jurjanpaul/ape-cljs-playground on GitHub"}
+       :data-icon="octicon-repo"}
    ""])
 
 (defn editor []
@@ -486,30 +510,44 @@ derivative of other people's hard work.)
    [:textarea
     {:id "code-input"
      :cols 120
-     :rows 22
+     :rows 20
      :onChange code-input-changed}
     (or (.getItem (.-localStorage js/window) "code")
         preloaded-code)]
    [:div
     [:button
-     {:on-click load-code}
+     {:style {:margin "1px"}
+      :on-click load-code}
      (if (string/blank? @output)
        "Load"
        "Reload")]
+    [:span.pointer
+     {:style {:margin "2px"}
+      :on-click undo}
+     "↩️"]
+    [:span.pointer
+     {:style {:margin "2px"}
+      :on-click redo}
+     "↪️"]
+    [:span
+     {:style {:margin-left "0.3em"
+              :margin-right "0.3em"
+              :color "grey"}}
+     "|"]
+    [:button
+     {:style  {:margin "1px"}
+      :on-click #(do (copy-to-clipboard (code))
+                     (js/alert "Code copied to clipboard."))}
+     "Copy"]
     [:button
      {:style {:margin "1px"}
-      :on-click #(copy-to-clipboard (code))}
-     "Copy to clipboard"]
+      :on-click #(do (share)
+                     (js/alert "URL with code copied to clipboard."))}
+      "Share"]
     [:button
      {:style {:margin "1px"}
       :on-click clear-code}
-     "Clear code"]
-    [:span.pointer {:style {:margin "1px"}
-                    :on-click undo}
-                   "↩️"]
-    [:span.pointer {:style {:margin "1px"}
-                    :on-click redo}
-                   "↪️"]]
+     "Clear"]]
    [render-output]
    [render-reagent-component]])
 
