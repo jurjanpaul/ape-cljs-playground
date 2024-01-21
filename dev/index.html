@@ -276,6 +276,8 @@ derivative of other people's hard work.)
   (.-localStorage js/window))
 
 (defn encode [code]
+  ;; Considered using Compression Streams API to decrease URL size, but decided that
+  ;; is probably still too new to rely on its presence on all devices.
   (-> code
       js/encodeURIComponent
       js/unescape
@@ -299,7 +301,7 @@ derivative of other people's hard work.)
     (copy-to-clipboard js/window.location.href)))
     ;(println (decode (get-src js/window.location.href)))))
 
-(defn url-stored-code []
+(defn url-embedded-code []
   (when-let [src (get-src)]
     (decode src)))
 
@@ -349,7 +351,7 @@ derivative of other people's hard work.)
        "change"
        (fn [_ change] (code-input-changed change)))
   (.setValue @code-mirror
-             (or (url-stored-code)
+             (or (url-embedded-code)
                  (stored-code)
                  preloaded-code))
   (when-let [history (stored-history)]
