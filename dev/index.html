@@ -293,9 +293,8 @@ derivative of other people's hard work.)
   (let [coded (encode (code))
         url (location->url)]
     (.set (.-searchParams url) "src" coded)
-    (.pushState js/history {} "" (str url))
-    (copy-to-clipboard js/window.location.href)))
-    ;(println (decode (src-queryparam-value js/window.location.href)))))
+    (println (str url))
+    (copy-to-clipboard (str url))))
 
 (defn url-embedded-code []
   (when-let [src (src-queryparam-value)]
