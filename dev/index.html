@@ -283,23 +283,26 @@ derivative of other people's hard work.)
       js/escape
       js/decodeURIComponent))
 
-(defn get-src []
-  (let [url (js/URL. js.window.location.href)]
-    (.get (.-searchParams url) "src")))
+(defn location->url []
+  (js/URL. js/window.location.href))
+
+(defn src-queryparam-value []
+  (.get (.-searchParams (location->url)) "src"))
 
 (defn share []
   (let [coded (encode (code))
-        url (js/URL. js/window.location.href)]
+        url (location->url)]
     (.set (.-searchParams url) "src" coded)
     (.pushState js/history {} "" (str url))
     (copy-to-clipboard js/window.location.href)))
-    ;(println (decode (get-src js/window.location.href)))))
+    ;(println (decode (src-queryparam-value js/window.location.href)))))
 
 (defn url-embedded-code []
-  (when-let [src (get-src)]
+  (when-let [src (src-queryparam-value)]
     (decode src)))
 
-(def default-local-store-code-key "buffer-1")
+(def default-local-store-code-key
+  "buffer-1")
 
 (def local-store-code-key
   (atom default-local-store-code-key))
@@ -470,12 +473,20 @@ derivative of other people's hard work.)
        :data-icon="octicon-repo"}
    ""])
 
+(defn title-clicked [_]
+  (let [url (location->url)]
+    (println "new-location:" (.-pathname url))
+    (js/window.location.replace (.-pathname url))))
+
 (defn editor []
   [:div
    [:div
     {:style {:display "flex"}}
     [:div
-      [:h3 "🦧 ape-cljs-playground "]]
+     [:h3
+      {:style {:cursor "pointer"}
+       :on-click title-clicked}
+      "🦧 ape-cljs-playground "]]
     [:div
      {:style {:display "flex"
               :position "absolute"
@@ -535,7 +546,7 @@ derivative of other people's hard work.)
               :color "grey"}}
      "|"]
     [:button
-     {:style  {:margin "1px"}
+     {:style {:margin "1px"}
       :on-click #(do (copy-to-clipboard (code))
                      (js/alert "Code copied to clipboard."))}
      "Copy"]
@@ -547,7 +558,14 @@ derivative of other people's hard work.)
     [:button
      {:style {:margin "1px"}
       :on-click clear-code}
-     "Clear"]]
+     "Clear"]
+    (when-not (string/blank? (.-search (location->url)))
+      [:span
+       {:style {:font-size "0.8em"
+                :margin-left "0.3em"}}
+       [:a
+        {:href (str (.-pathname (location->url)))}
+        "default buffer"]])]
    [render-output]
    [render-reagent-component]])
 
