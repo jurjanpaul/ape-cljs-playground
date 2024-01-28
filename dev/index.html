@@ -46,6 +46,8 @@ Currently provides
  - trivial, but very helpful: can be saved as an 'app' on phone's home screen,
    each 'app' automagically getting its own localStorage!
  - history / undo + redo
+ - Share feature that encodes code in URL, protecting the default buffer
+   by introducing a new localStorage buffer when opening such an URL.
 
 Current annoyances
  - After (un)zooming&scrolling, the cursor position sometimes no longer
@@ -68,9 +70,6 @@ Other wishes/TODOs (nothing planned):
  - improved styling for mobile (just zoom and swipe/scroll a lot for now!);
  - linting
  - allow fetching existing code (gist) from url
- - support links with the code in a query parameter (tricky to get right in
-   combination with the local storage, not wanting to overwrite any previously
-   entered code without warning);
  - add deps (seems hard/hardly possible)
  - separate Scittle script's namespace from user entered code's namespace
  - save to gist or ... ?
