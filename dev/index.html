@@ -269,11 +269,10 @@ derivative of other people's hard work.)
     nil))
 
 (defn encode [code]
-  ;; Ironically the encoded URL takes quite a bit more bytes than
-  ;; the code itself.
-  ;; Considered using Compression Streams API to decrease URL size,
-  ;; but it seems relatively new and I'm not keen on dealing
-  ;; with the asynchronity.
+  ;; Unfortunately the encoded URL takes quite a bit more bytes than
+  ;; the code itself. I considered using Compression Streams API to
+  ;; decrease URL size, but it seems relatively new and I'm not too keen
+  ;; on dealing with the asynchronity.
   (-> code
       js/encodeURIComponent
       js/unescape
@@ -291,22 +290,45 @@ derivative of other people's hard work.)
 (def code-url-parameter
   "code")
 
-(defn code-queryparam-value []
-  (.get (.-searchParams (location->url))
-        code-url-parameter))
+(def checksum-url-parameter
+  "checksum")
+
+(defn code-checksum-id [code]
+  (-> code hash js/btoa))
 
 (defn share []
-  (let [coded (encode (editor-contents))
+  (let [code (editor-contents)
+        coded (encode code)
         url (location->url)]
     (.set (.-searchParams url)
           code-url-parameter
           coded)
+    (.set (.-searchParams url)
+          checksum-url-parameter
+          (code-checksum-id code))
     (println "Sharing as" (str url))
-    (copy-to-clipboard (str url))))
+    (copy-to-clipboard (str url))
+    (js/alert "URL with code copied to clipboard.")))
+
+(defn code-queryparam-value []
+  (.get (.-searchParams (location->url))
+        code-url-parameter))
+
+(defn checksum-queryparam-value []
+  (.get (.-searchParams (location->url))
+        checksum-url-parameter))
 
 (defn url-embedded-code []
   (when-let [coded (code-queryparam-value)]
-    (decode coded)))
+    (let [code (decode coded)
+          checksum (checksum-queryparam-value)]
+      (if (or (string/blank? checksum)
+              (not= checksum (code-checksum-id code)))
+        (do
+          (js/alert "Unfortunately, the opened URL is incomplete.\nThe embedded code fragment will be ignored.\nYou might want to try that again!")
+          (.replace js/window.location (.-pathname (location->url)))
+          nil)
+        code))))
 
 (def default-local-store-code-key
   "buffer-1")
@@ -337,7 +359,8 @@ derivative of other people's hard work.)
             (local-store-history-key)
             (js/JSON.stringify history)))
 
-(def store-history-timeout-id (atom nil))
+(def store-history-timeout-id
+  (atom nil))
 
 (defn planned-store-history []
   (when @store-history-timeout-id
@@ -357,14 +380,11 @@ derivative of other people's hard work.)
   (-> (editor-contents) store-code)
   (plan-store-history))
 
-(defn code-identifier [code]
-  (-> code hash js/btoa))
-
 (defn determine-initial-code []
   (if-let [url-embedded (url-embedded-code)]
     (do
       (reset! local-store-code-key
-              (str "buffer-" (code-identifier url-embedded)))
+              (str "buffer-" (code-checksum-id url-embedded)))
       (let [locally-stored (stored-code)
             keep-local?
             (and locally-stored
@@ -566,8 +586,7 @@ derivative of other people's hard work.)
      "Copy"]
     [:button
      {:style {:margin "1px"}
-      :on-click #(do (share)
-                     (js/alert "URL with code copied to clipboard."))}
+      :on-click share}
       "Share"]
     [:button
      {:style {:margin "1px"}
