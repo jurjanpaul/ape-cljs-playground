@@ -46,6 +46,8 @@ Currently provides
  - trivial, but very helpful: can be saved as an 'app' on phone's home screen,
    each 'app' automagically getting its own localStorage!
  - history / undo + redo
+ - Share feature that encodes code in URL, protecting the default/main buffer
+   by saving changes to a new localStorage buffer after opening such an URL.
 
 Current annoyances
  - After (un)zooming&scrolling, the cursor position sometimes no longer
@@ -68,9 +70,6 @@ Other wishes/TODOs (nothing planned):
  - improved styling for mobile (just zoom and swipe/scroll a lot for now!);
  - linting
  - allow fetching existing code (gist) from url
- - support links with the code in a query parameter (tricky to get right in
-   combination with the local storage, not wanting to overwrite any previously
-   entered code without warning);
  - add deps (seems hard/hardly possible)
  - separate Scittle script's namespace from user entered code's namespace
  - save to gist or ... ?
@@ -101,7 +100,6 @@ like to hear if this turns out helpful to you in any way.
 P.S. Some of the alternative mobile / in-browser Clojure(Script) 'playgrounds'
 that I know of:
   * http://app.klipse.tech/
-  * https://babashka.org/scittle/codemirror.html
   * https://borkdude.github.io/sci.web/
   * https://clojurescript.io/
   * https://nextjournal.github.io/clojure-mode/#try-it
@@ -124,7 +122,7 @@ derivative of other people's hard work.)
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&family=Source+Code+Pro&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.css">
     <style type="text/css">
-      html, body, div, p, span, pre, h3, textarea {
+      * {
         box-sizing: border-box;
         margin: 0;
         padding: 0;
@@ -133,6 +131,11 @@ derivative of other people's hard work.)
       body {
         padding: 4px 4px 2em;
         font-family: "Open Sans", sans-serif;
+      }
+
+      button {
+        border-radius: 4px;
+        padding: 2px 6px 2px 6px;
       }
 
       .parinfer-error {
@@ -248,7 +251,7 @@ derivative of other people's hard work.)
 (def code-mirror
   (atom nil))
 
-(defn code []
+(defn editor-contents []
   (when-let [cm @code-mirror]
     (.getValue cm)))
 
@@ -262,29 +265,102 @@ derivative of other people's hard work.)
     (set! (.-value temp-textarea) s)
     (.select temp-textarea)
     (js/document.execCommand "copy")
-    (.removeChild js/document.body temp-textarea)))
+    (.removeChild js/document.body temp-textarea)
+    nil))
 
-(def local-store-code-key "buffer-1")
-(def local-store-history-key (str local-store-code-key ".history"))
+(defn encode [code]
+  ;; Unfortunately the encoded URL takes quite a bit more bytes than
+  ;; the code itself. I considered using Compression Streams API to
+  ;; decrease URL size, but it seems relatively new and I'm not too keen
+  ;; on dealing with the asynchronity.
+  (-> code
+      js/encodeURIComponent
+      js/unescape
+      js/btoa))
+
+(defn decode [coded]
+  (-> coded
+      js/atob
+      js/escape
+      js/decodeURIComponent))
+
+(defn location->url []
+  (js/URL. js/window.location.href))
+
+(def code-url-parameter
+  "code")
+
+(def checksum-url-parameter
+  "checksum")
+
+(defn code-checksum-id [code]
+  (-> code hash js/btoa))
+
+(defn share []
+  (let [code (editor-contents)
+        coded (encode code)
+        url (location->url)]
+    (.set (.-searchParams url)
+          code-url-parameter
+          coded)
+    (.set (.-searchParams url)
+          checksum-url-parameter
+          (code-checksum-id code))
+    (println "Sharing as" (str url))
+    (copy-to-clipboard (str url))
+    (js/alert "URL with code copied to clipboard.")))
+
+(defn code-queryparam-value []
+  (.get (.-searchParams (location->url))
+        code-url-parameter))
+
+(defn checksum-queryparam-value []
+  (.get (.-searchParams (location->url))
+        checksum-url-parameter))
+
+(defn url-embedded-code []
+  (when-let [coded (code-queryparam-value)]
+    (let [code (decode coded)
+          checksum (checksum-queryparam-value)]
+      (if (or (string/blank? checksum)
+              (not= checksum (code-checksum-id code)))
+        (do
+          (js/alert "Unfortunately, the opened URL is incomplete.\nThe embedded code fragment will be ignored.\nYou might want to try that again!")
+          (.replace js/window.location (.-pathname (location->url)))
+          nil)
+        code))))
+
+(def default-local-store-code-key
+  "buffer-1")
+
+(def local-store-code-key
+  (atom default-local-store-code-key))
+
+(defn local-store-history-key []
+  (str @local-store-code-key ".history"))
 
 (defn local-storage []
   (.-localStorage js/window))
 
 (defn stored-code []
-  (.getItem (local-storage) local-store-code-key))
+  (.getItem (local-storage) @local-store-code-key))
 
 (defn store-code [code]
-  (.setItem (local-storage) local-store-code-key code))
+  (.setItem (local-storage)
+            @local-store-code-key
+            code))
 
 (defn stored-history []
-  (js/JSON.parse (.getItem (local-storage) local-store-history-key)))
+  (js/JSON.parse (.getItem (local-storage)
+                           (local-store-history-key))))
 
 (defn store-history [history]
   (.setItem (local-storage)
-            local-store-history-key
+            (local-store-history-key)
             (js/JSON.stringify history)))
 
-(def store-history-timeout-id (atom nil))
+(def store-history-timeout-id
+  (atom nil))
 
 (defn planned-store-history []
   (when @store-history-timeout-id
@@ -301,8 +377,27 @@ derivative of other people's hard work.)
           (js/setTimeout planned-store-history 400)))
 
 (defn code-input-changed [_event]
-  (-> (code) store-code)
+  (-> (editor-contents) store-code)
   (plan-store-history))
+
+(defn determine-initial-code []
+  (if-let [url-embedded (url-embedded-code)]
+    (do
+      (reset! local-store-code-key
+              (str "buffer-" (code-checksum-id url-embedded)))
+      (let [locally-stored (stored-code)
+            keep-local?
+            (and locally-stored
+                 (or (= locally-stored url-embedded)
+                     (js/confirm "Keep previous changes for this URL?")))]
+        (if keep-local?
+          locally-stored
+          (do
+            (store-history "")
+            (store-code url-embedded)
+            url-embedded))))
+    (or (stored-code)
+        preloaded-code)))
 
 (defn initialize-code-mirror []
   (reset! code-mirror
@@ -316,8 +411,7 @@ derivative of other people's hard work.)
        "change"
        (fn [_ change] (code-input-changed change)))
   (.setValue @code-mirror
-             (or (stored-code)
-                 preloaded-code))
+             (determine-initial-code))
   (when-let [history (stored-history)]
     (.setHistory (.getDoc @code-mirror) history)))
 
@@ -367,7 +461,7 @@ derivative of other people's hard work.)
       (throw (ex-info "loading" {:loading-url url})))))
 
 (defn load-code []
-  (let [c (code)]
+  (let [c (editor-contents)]
     (-clear-output!)
     (js/setTimeout
      (fn []
@@ -389,7 +483,8 @@ derivative of other people's hard work.)
       [:pre {:id "output-text"} @output]]
      [:button
       {:style {:margin "1px"}
-       :on-click #(copy-to-clipboard @output)}
+       :on-click #(do (copy-to-clipboard @output)
+                      (js/alert "Output copied to clipboard."))}
       "Copy to clipboard"]]))
 
 (defn render-reagent-component []
@@ -402,17 +497,44 @@ derivative of other people's hard work.)
         component
         [component])]]))
 
+(defn github-link []
+  [:a {:class "github-button"
+       :href "https://github.com/jurjanpaul/ape-cljs-playground"
+       :data-icon="octicon-repo"}
+   ""])
+
+(defn horizontal-separator []
+  [:span
+   {:style {:margin-left "0.2em"
+            :margin-right "0.2em"
+            :color "grey"}}
+    "|"])
 
 (defn editor []
   [:div
-   [:h3 "🦧 ape-cljs-playground "]
+   [:div
+    {:style {:display "flex"}}
+    [:div
+     [:h3
+      "🦧 ape-cljs-playground "]]
+    [:div
+     {:style {:display "flex"
+              :position "absolute"
+              :right "0px"
+              :top "0px"
+              :margin-top "0.5em"}}
+     [:button
+      {:style {:margin-left "4px"
+               :margin-right "4px"
+               :margin-bottom "0.5em"}
+       :on-click toggle-page-source}
+      "source with docs " (if @page-source "▽" "▷")]
+     [:span {:style {:padding-top "1px"
+                     :margin-right "4px"}}
+      [github-link]]]]
    [:p
-    [:span [:i "Away from Preferred Editor"] " ClojureScript Playground"]
-    " "
-    [:button
-     {:style {:margin-left "2em", :margin-bottom "0.5em"}
-      :on-click toggle-page-source}
-     "page source with documentation " (if @page-source "▽" "▷")]]
+    {:style {:font-size "0.9em"}}
+    [:span [:i "Away from Preferred Editor"] " ClojureScript Playground"]]
    (when @page-source
      [:div
       {:style {:font-family "Source Code Pro, monospace"
@@ -436,20 +558,48 @@ derivative of other people's hard work.)
         preloaded-code)]
    [:div
     [:button
-     {:on-click load-code}
-     (if (string/blank? @output)
-       "Load"
-       "Reload")]
+     {:style {:margin "1px"}
+      :on-click load-code}
+     "Load"]
+    [horizontal-separator]
+    [:button
+     {:style {:margin "0 1px 0 1px"
+              :padding "0 4px 0 4px"
+              :font-size "1.2em"
+              :font-weight "bold"
+              :transform "translate(0,2px)"}
+      :on-click undo}
+     "⟲"]
+    [:button
+     {:style {:margin "0 1px 0 1px"
+              :padding "0 4px 0 4px"
+              :font-size "1.2em"
+              :font-weight "bold"
+              :transform "translate(0,2px)"}
+      :on-click redo}
+     "⟳"]
+    [horizontal-separator]
     [:button
      {:style {:margin "1px"}
-      :on-click #(copy-to-clipboard (code))}
-     "Copy to clipboard"]
+      :on-click #(do (copy-to-clipboard (editor-contents))
+                     (js/alert "Code copied to clipboard."))}
+     "Copy"]
+    [:button
+     {:style {:margin "1px"}
+      :on-click share}
+      "Share"]
     [:button
      {:style {:margin "1px"}
       :on-click clear-code}
-     "Clear code"]
-    [:span.pointer {:on-click undo} "↩️"]
-    [:span.pointer {:on-click redo} "↪️"]]
+     "Clear"]
+    (when-not (string/blank? (.-search (location->url)))
+      [:<>
+       [horizontal-separator]
+       [:span
+        {:style {:font-size "0.8em"}}
+        [:a
+         {:href (.-pathname (location->url))}
+         "main buffer >"]]])]
    [render-output]
    [render-reagent-component]])
 
@@ -465,5 +615,6 @@ derivative of other people's hard work.)
     <script src="https://cdn.jsdelivr.net/npm/parinfer@3.12.0/parinfer.min.js"></script>
     <!-- <script src="https://cdn.jsdelivr.net/npm/parinfer-codemirror@1.4.2/parinfer-codemirror.min.js"></script> -->
     <script src="lib/parinfer-codemirror.js" type="application/javascript"></script> <!-- tweaked version w.r.t. scrolling -->
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
   </body>
 </html>
