@@ -540,9 +540,7 @@ derivative of other people's hard work.)
     [:button
      {:style {:margin "1px"}
       :on-click load-code}
-     (if (string/blank? @output)
-       "Load"
-       "Reload")]
+     "Load"]
     [horizontal-separator]
     [:button
      {:style {:margin "0 1px 0 1px"
@@ -582,7 +580,7 @@ derivative of other people's hard work.)
         {:style {:font-size "0.8em"}}
         [:a
          {:href (.-pathname (location->url))}
-         "default buffer >"]]])]
+         "main buffer >"]]])]
    [render-output]
    [render-reagent-component]])
 
