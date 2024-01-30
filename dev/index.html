@@ -135,7 +135,7 @@ derivative of other people's hard work.)
 
       button {
         border-radius: 4px;
-        padding: 2px 4px 2px 4px;
+        padding: 2px 8px 2px 8px;
       }
 
       .parinfer-error {
@@ -251,7 +251,7 @@ derivative of other people's hard work.)
 (def code-mirror
   (atom nil))
 
-(defn code []
+(defn editor-contents []
   (when-let [cm @code-mirror]
     (.getValue cm)))
 
@@ -269,8 +269,11 @@ derivative of other people's hard work.)
     nil))
 
 (defn encode [code]
-  ;; Considered using Compression Streams API to decrease URL size, but decided that
-  ;; is probably still too new to rely on its presence on all devices.
+  ;; Ironically the encoded URL takes quite a bit more bytes than
+  ;; the code itself.
+  ;; Considered using Compression Streams API to decrease URL size,
+  ;; but it seems relatively new and I'm not keen on dealing
+  ;; with the asynchronity.
   (-> code
       js/encodeURIComponent
       js/unescape
@@ -285,19 +288,25 @@ derivative of other people's hard work.)
 (defn location->url []
   (js/URL. js/window.location.href))
 
-(defn src-queryparam-value []
-  (.get (.-searchParams (location->url)) "src"))
+(def code-url-parameter
+  "code")
+
+(defn code-queryparam-value []
+  (.get (.-searchParams (location->url))
+        code-url-parameter))
 
 (defn share []
-  (let [coded (encode (code))
+  (let [coded (encode (editor-contents))
         url (location->url)]
-    (.set (.-searchParams url) "src" coded)
-    (println (str url))
+    (.set (.-searchParams url)
+          code-url-parameter
+          coded)
+    (println "Sharing " (str url))
     (copy-to-clipboard (str url))))
 
 (defn url-embedded-code []
-  (when-let [src (src-queryparam-value)]
-    (decode src)))
+  (when-let [coded (code-queryparam-value)]
+    (decode coded)))
 
 (def default-local-store-code-key
   "buffer-1")
@@ -345,14 +354,17 @@ derivative of other people's hard work.)
           (js/setTimeout planned-store-history 400)))
 
 (defn code-input-changed [_event]
-  (-> (code) store-code)
+  (-> (editor-contents) store-code)
   (plan-store-history))
+
+(defn code-identifier [code]
+  (-> code hash js/btoa))
 
 (defn determine-initial-code []
   (if-let [url-embedded (url-embedded-code)]
     (do
       (reset! local-store-code-key
-              (str "buffer-" (hash url-embedded))) ; Clojure's hash seems ok for now?!
+              (str "buffer-" (code-identifier url-embedded)))
       (let [locally-stored (stored-code)
             keep-local?
             (and locally-stored
@@ -429,7 +441,7 @@ derivative of other people's hard work.)
       (throw (ex-info "loading" {:loading-url url})))))
 
 (defn load-code []
-  (let [c (code)]
+  (let [c (editor-contents)]
     (-clear-output!)
     (js/setTimeout
      (fn []
@@ -471,10 +483,12 @@ derivative of other people's hard work.)
        :data-icon="octicon-repo"}
    ""])
 
-(defn title-clicked [_]
-  (let [url (location->url)]
-    (println "new-location:" (.-pathname url))
-    (js/window.location.replace (.-pathname url))))
+(defn horizontal-separator []
+  [:span
+   {:style {:margin-left "0.3em"
+            :margin-right "0.3em"
+            :color "grey"}}
+    "|"])
 
 (defn editor []
   [:div
@@ -482,8 +496,6 @@ derivative of other people's hard work.)
     {:style {:display "flex"}}
     [:div
      [:h3
-      {:style {:cursor "pointer"}
-       :on-click title-clicked}
       "🦧 ape-cljs-playground "]]
     [:div
      {:style {:display "flex"
@@ -491,14 +503,15 @@ derivative of other people's hard work.)
               :right "0px"
               :top "0px"
               :margin-top "0.5em"}}
-     [:span {:style {:padding-top "1px"}}
-      [github-link]]
      [:button
       {:style {:margin-left "4px"
                :margin-right "4px"
                :margin-bottom "0.5em"}
        :on-click toggle-page-source}
-      "source with docs " (if @page-source "▽" "▷")]]]
+      "source with docs " (if @page-source "▽" "▷")]
+     [:span {:style {:padding-top "1px"
+                     :margin-right "4px"}}
+      [github-link]]]]
    [:p
     {:style {:font-size "0.9em"}}
     [:span [:i "Away from Preferred Editor"] " ClojureScript Playground"]]
@@ -530,22 +543,27 @@ derivative of other people's hard work.)
      (if (string/blank? @output)
        "Load"
        "Reload")]
-    [:span.pointer
-     {:style {:margin "2px"}
+    [horizontal-separator]
+    [:button
+     {:style {:margin "0 1px 0 1px"
+              :padding "0 4px 0 4px"
+              :font-size "1.2em"
+              :font-weight "bold"
+              :transform "translate(0,2px)"}
       :on-click undo}
-     "↩️"]
-    [:span.pointer
-     {:style {:margin "2px"}
+     "⟲"]
+    [:button
+     {:style {:margin "0 1px 0 1px"
+              :padding "0 4px 0 4px"
+              :font-size "1.2em"
+              :font-weight "bold"
+              :transform "translate(0,2px)"}
       :on-click redo}
-     "↪️"]
-    [:span
-     {:style {:margin-left "0.3em"
-              :margin-right "0.3em"
-              :color "grey"}}
-     "|"]
+     "⟳"]
+    [horizontal-separator]
     [:button
      {:style {:margin "1px"}
-      :on-click #(do (copy-to-clipboard (code))
+      :on-click #(do (copy-to-clipboard (editor-contents))
                      (js/alert "Code copied to clipboard."))}
      "Copy"]
     [:button
@@ -558,12 +576,13 @@ derivative of other people's hard work.)
       :on-click clear-code}
      "Clear"]
     (when-not (string/blank? (.-search (location->url)))
-      [:span
-       {:style {:font-size "0.8em"
-                :margin-left "0.3em"}}
-       [:a
-        {:href (str (.-pathname (location->url)))}
-        "default buffer"]])]
+      [:<>
+       [horizontal-separator]
+       [:span
+        {:style {:font-size "0.8em"}}
+        [:a
+         {:href (.-pathname (location->url))}
+         "default buffer ⤑"]]])]
    [render-output]
    [render-reagent-component]])
 
