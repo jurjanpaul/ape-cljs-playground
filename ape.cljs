@@ -1,208 +1,3 @@
-<html>
-  <!--
-ape-cljs-playground - Away from Preferred Editor ClojureScript Playground
-
-This page allows you to simply try out Clojure forms on your mobile device in
-moments when you don't have your laptop/desktop with preferred text editor at
-hand. (You can also, for example, use it to write and run solutions for all of
-the Advent of Code puzzles, https://adventofcode.com/, as I did for the 2023
-edition.)
-
-Therefore, this little project aims to provide mobile-friendly Clojure editing.
-To me this means (at least):
-  - Parinfer!
-  - kept in (local) storage to allow for quick and easy incremental work;
-  - evaluate anything that's available in (the SCI subset of) ClojureScript,
-    including macros within the browser;
-  - all output (including errors) displayed on the page.
-
-Quite a number of web-based/mobile-oriented Clojure editors exist, but I haven't
-yet found any that support all of the above sub-goals 'out of the box',
-particularly the storage part. So, that's the itch being scratched here.
-
-Not particularly aiming for
- - performance (just spoiled by SCI's out-of-the-box speed I guess);
- - small download size.
-
-The project's git repository can be found at
-https://github.com/jurjanpaul/ape-cljs-playground.
-The page is hosted at https://jurjanpaul.github.io/ape-cljs-playground.
-
-Currently provides
- - run ClojureScript (per SCI / Scittle, https://github.com/babashka/scittle)
-   - includes macro support out-of-the-box (might require an extra reload)
- - Parinfer (per parinfer-codemirror)
- - persistence (per browser's localStorage)
- - Reagent (not essential, but did not require any extra effort per Scittle,
-   plus it definitely kickstarted some dogfeeding).
-   To render, simply invoke the convenience function `render-with-reagent`
-   with a reagent component function as parameter.
- - maximum portability by being contained in a single HTML file
-   (not at all essential, but nice as long as it's feasible in light of the
-   remaining wishes)
-   => Well, this is no longer really true anymore now that I'm depending on
-      a tweaked version of parinfer-codemirror.js to improve scrolling
-      behaviour.
- - trivial, but very helpful: can be saved as an 'app' on phone's home screen,
-   each 'app' automagically getting its own localStorage!
- - history / undo + redo
- - Share feature that encodes code in URL, protecting the default/main buffer
-   by saving changes to a new localStorage buffer after opening such an URL.
-   Note: As was to be expected, large programs will result in a huge URL that 
-   no (mobile) browser can actually open.
-
-Current annoyances
- - After (un)zooming&scrolling, the cursor position sometimes no longer
-   corresponds to the actual insertion point;
-   => Unfortunately, I still haven't figured out how to deal with this,
-   other than:
-    - zooming out;
-    - selecting another page element;
-    - tilting the phone;
-    - reloading the entire page...
- - Cursor position being scrolled out of focus when deleting/commenting code.
-   => Improved the situation  w.r.t. vertical scrolling somewhat by tweaking
-      parinfer-codemirror.js
-
-Other wishes/TODOs (nothing planned):
- - on-screen footer keyboard with opening braces + other useful special chars
- - multiple buffers
-   (Hint: by saving the page multiple times to my iPhone's Home screen I
-   already get multiple buffers for free!)
- - improved styling for mobile (just zoom and swipe/scroll a lot for now!);
- - linting
- - allow fetching existing code (gist) from url
- - add deps (seems hard/hardly possible)
- - separate Scittle script's namespace from user entered code's namespace
- - save to gist or ... ?
- - upgrade to CodeMirror 6 (support for Parinfer seems to be a challenge
-   still)
-
-API
- - everything that Scittle exposes, including:
-     - cljs.pprint as pprint
-     - clojure.string as string
-     - reagent.core as r
-     - reagent.dom as rdom
- - render-with-reagent
- - load-from-url (experimental)
-
-All in all I feel this is a nice showcase of what is possible with Scittle!
-Thanks to all library and tool builders who made it possible for me to throw
-this together so lazily!
-
-Feel free to customize and extend this file as desired. Of course, I would
-like to hear if this turns out helpful to you in any way.
-
-  Jurjan-Paul Medema
-  Github: jurjanpaul
-  Twitter: @jurjanpaul
-  Clojurians Slack: @jurjanpaul
-
-P.S. Some of the alternative mobile / in-browser Clojure(Script) 'playgrounds'
-that I know of:
-  * http://app.klipse.tech/
-  * https://borkdude.github.io/sci.web/
-  * https://clojurescript.io/
-  * https://nextjournal.github.io/clojure-mode/#try-it
-  * https://oakes.github.io/paren-soup/
-  * https://squint-cljs.github.io/squint/
-  * Replete (iPhone app)
-
-('Ape' also refers to the fact that this can indeed be considered a poor copy or
-derivative of other people's hard work.)
--->
-  <head>
-    <title>Away from Preferred Editor ClojureScript Playground</title>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="url" content="https://jurjanpaul.github.io/ape-cljs-playground">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&family=Source+Code+Pro&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.css">
-    <style type="text/css">
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-
-      body {
-        padding: 4px 4px 2em;
-        font-family: "Open Sans", sans-serif;
-      }
-
-      button {
-        border-radius: 4px;
-        padding: 2px 6px 2px 6px;
-      }
-
-      .parinfer-error {
-        background: #FFBEBE;
-        color: black !important;
-      }
-
-      .parinfer-paren-trail {
-        opacity: 0.4;
-      }
-
-      .CodeMirror {
-        box-sizing: border-box;
-        resize: both;
-        border: 1px solid #aaa;
-        padding: 1px;
-        padding-bottom: 1em;
-        margin-bottom: 2px;
-      }
-
-      .CodeMirror, .CodeMirror * {
-         font-family: "Source Code Pro", monospace;
-         font-size: 0.8rem;
-      }
-
-      .CodeMirror-matchingbracket {
-        color: orange !important;
-        font-weight: bold;
-        background-color: lightgray;        ;
-      }
-
-      #output {
-        font-family: "Source Code Pro", monospace;
-        padding: 0.5em;
-        padding-bottom: 1em;
-        color: white;
-        background-color: #120754;
-        font-size: small;
-        overflow-y: scroll;
-        min-height: 10em;
-        border-style: inset;
-        border-width: 1px;
-        border-radius: 5px;
-        border-color: lightblue;
-        resize: both;
-      }
-
-      .page-source {
-        border-style: solid;
-        border-width: 1px;
-        padding: 0.5em;
-        margin-bottom: 0.5em;
-      }
-
-      .pointer {
-        cursor: pointer;
-      }
-    </style>
-    <script src="https://cdn.jsdelivr.net/npm/scittle@0.6.15/dist/scittle.js" type="application/javascript"></script>
-    <script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/scittle@0.6.15/dist/scittle.reagent.js" type="application/javascript"></script>
-    <script src="https://cdn.jsdelivr.net/npm/scittle@0.6.15/dist/scittle.re-frame.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/scittle@0.6.15/dist/scittle.pprint.js" type="application/javascript"></script>
-    <script type="application/x-scittle">
 (require '[cljs.pprint :as pprint]
          '[clojure.string :as string]
          '[reagent.core :as r]
@@ -219,9 +14,6 @@ derivative of other people's hard work.)
    [:p \"The answer turns out to 🐝 ... \" (answer)]])
 
 (render-with-reagent the-answer)
-
-(load-from-url \"https://raw.githubusercontent.com/weavejester/medley/1.5.0/src/medley/core.cljc\") ; master doesn't work (reader conditionals)
-(pr (medley.core/index-by :id [{:id 1, :value :a} {:id 2, :value :b}]))
 
 (answer)
 ")
@@ -474,8 +266,8 @@ derivative of other people's hard work.)
            (when-not (contains? (ex-data e) :loading-url)
              (println "Error:" (.-message e))
              (run! println (-> (sci/stacktrace e) (sci/format-stacktrace))))))
-       (js/setTimeout scroll-output-into-focus! 100))
-       200)))
+       (js/setTimeout scroll-output-into-focus! 100)
+       200))))
 
 (defn render-output []
   (when-not (nil? @output)
@@ -510,7 +302,7 @@ derivative of other people's hard work.)
    {:style {:margin-left "0.2em"
             :margin-right "0.2em"
             :color "grey"}}
-    "|"])
+   "|"])
 
 (defn editor []
   [:div
@@ -589,7 +381,7 @@ derivative of other people's hard work.)
     [:button
      {:style {:margin "1px"}
       :on-click share}
-      "Share"]
+     "Share"]
     [:button
      {:style {:margin "1px"}
       :on-click clear-code}
@@ -607,16 +399,3 @@ derivative of other people's hard work.)
 
 (rdom/render [editor] (.getElementById js/document "editor"))
 (initialize-code-mirror)
-    </script>
-  </head>
-  <body>
-    <div id="editor"></div>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/addon/edit/matchbrackets.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/mode/clojure/clojure.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/parinfer@3.12.0/parinfer.min.js"></script>
-    <!-- <script src="https://cdn.jsdelivr.net/npm/parinfer-codemirror@1.4.2/parinfer-codemirror.min.js"></script> -->
-    <script src="lib/parinfer-codemirror.js" type="application/javascript"></script> <!-- tweaked version w.r.t. scrolling -->
-    <script async defer src="https://buttons.github.io/buttons.js"></script>
-  </body>
-</html>
