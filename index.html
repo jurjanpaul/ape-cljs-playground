@@ -122,7 +122,6 @@ derivative of other people's hard work.)
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&family=Source+Code+Pro&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.css">
     <style type="text/css">
       * {
         box-sizing: border-box;
@@ -140,25 +139,15 @@ derivative of other people's hard work.)
         padding: 2px 6px 2px 6px;
       }
 
-      .parinfer-error {
-        background: #FFBEBE;
-        color: black !important;
-      }
-
-      .parinfer-paren-trail {
-        opacity: 0.4;
-      }
-
-      .CodeMirror {
+      .cm-editor {
         box-sizing: border-box;
         resize: both;
         border: 1px solid #aaa;
         padding: 1px;
         padding-bottom: 1em;
-        margin-bottom: 2px;
       }
 
-      .CodeMirror, .CodeMirror * {
+      .cm-editor, .cm-editor * {
          font-family: "Source Code Pro", monospace;
          font-size: 0.8rem;
       }
@@ -202,16 +191,58 @@ derivative of other people's hard work.)
     <script src="https://cdn.jsdelivr.net/npm/scittle@0.6.22/dist/scittle.reagent.js" type="application/javascript"></script>
     <script src="https://cdn.jsdelivr.net/npm/scittle@0.6.22/dist/scittle.re-frame.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/scittle@0.6.22/dist/scittle.pprint.js" type="application/javascript"></script>
-    <script src="./ape.cljs" type="application/x-scittle"></script>
+    <script type="importmap">
+     {
+       "imports": {
+         "codemirror": "https://cdn.jsdelivr.net/npm/codemirror@6.0.1/dist/index.js",
+         "@codemirror/commands": "https://cdn.jsdelivr.net/npm/@codemirror/commands@6.7.1/dist/index.js",
+         "@codemirror/search": "https://cdn.jsdelivr.net/npm/@codemirror/search@6.5.8/dist/index.js",
+         "@codemirror/autocomplete": "https://cdn.jsdelivr.net/npm/@codemirror/autocomplete@6.18.3/dist/index.js",
+         "@codemirror/lint": "https://cdn.jsdelivr.net/npm/@codemirror/lint@6.8.4/dist/index.js",
+         "crelt": "https://cdn.jsdelivr.net/npm/crelt@1.0.6/index.js",
+         "@nextjournal/lang-clojure": "https://cdn.jsdelivr.net/npm/@nextjournal/lang-clojure@1.0.0/dist/index.js",
+         "@nextjournal/lezer-clojure": "https://cdn.jsdelivr.net/npm/@nextjournal/lezer-clojure@1.0.0/dist/index.es.js",
+         "@lezer/highlight": "https://cdn.jsdelivr.net/npm/@lezer/highlight@1.2.1/dist/index.js",
+         "@lezer/lr": "https://cdn.jsdelivr.net/npm/@lezer/lr@1.4.2/dist/index.js",
+         "@lezer/common": "https://cdn.jsdelivr.net/npm/@lezer/common@1.2.3/dist/index.js",
+         "@codemirror/commands": "https://cdn.jsdelivr.net/npm/@codemirror/commands@6.7.1/dist/index.js",
+         "@codemirror/language": "https://cdn.jsdelivr.net/npm/@codemirror/language@6.10.6/dist/index.js",
+         "@codemirror/lint": "https://cdn.jsdelivr.net/npm/@codemirror/lint@6.8.4/dist/index.js",
+         "@marijn/find-cluster-break": "https://cdn.jsdelivr.net/npm/@marijn/find-cluster-break@1.0.2",
+         "@codemirror/state": "https://cdn.jsdelivr.net/npm/@codemirror/state@6.5.0/dist/index.js",
+         "@codemirror/view": "https://cdn.jsdelivr.net/npm/@codemirror/view@6.35.3/dist/index.js",
+         "@codemirror/merge": "https://cdn.jsdelivr.net/npm/@codemirror/merge@6.7.4/dist/index.js",
+         "style-mod": "https://cdn.jsdelivr.net/npm/style-mod@4.1.2/src/style-mod.js",
+         "w3c-keyname": "https://cdn.jsdelivr.net/npm/w3c-keyname@2.2.8/index.js",
+         "@jurjanpaul/codemirror6-parinfer": "https://cdn.jsdelivr.net/npm/@jurjanpaul/codemirror6-parinfer@latest/dist/cm6-parinfer.min.js"
+       }
+     }
+   </script>
+   <script type="module">
+     import * as codemirror from 'codemirror';
+     import * as cm_commands from '@codemirror/commands';
+     import * as cm_language from '@codemirror/language';
+     import * as cm_lint from '@codemirror/lint';
+     import * as cm_view from '@codemirror/view';
+     import * as cm_state from '@codemirror/state';
+     import * as cm_merge from '@codemirror/merge';
+     import * as lang_clojure from '@nextjournal/lang-clojure'
+     import * as codemirror6_parinfer from '@jurjanpaul/codemirror6-parinfer'
+     globalThis.codemirror = codemirror;
+     globalThis.cm_commands = cm_commands;
+     globalThis.cm_language = cm_language;
+     globalThis.cm_lint = cm_lint;
+     globalThis.cm_state = cm_state;
+     globalThis.cm_view = cm_view;
+     globalThis.cm_merge = cm_merge;
+     globalThis.lang_clojure = lang_clojure;
+     globalThis.codemirror6_parinfer = codemirror6_parinfer;
+     scittle.core.eval_script_tags();
+   </script>
+   <script src="./ape.cljs" type="application/x-scittle"></script>
   </head>
   <body>
     <div id="editor"></div>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/addon/edit/matchbrackets.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.6/mode/clojure/clojure.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/parinfer@3.12.0/parinfer.min.js"></script>
-    <!-- <script src="https://cdn.jsdelivr.net/npm/parinfer-codemirror@1.4.2/parinfer-codemirror.min.js"></script> -->
-    <script src="lib/parinfer-codemirror.js" type="application/javascript"></script> <!-- tweaked version w.r.t. scrolling -->
     <script async defer src="https://buttons.github.io/buttons.js"></script>
   </body>
 </html>

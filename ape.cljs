@@ -42,16 +42,16 @@
     (reset! page-source nil)
     (load-page-source)))
 
-(def code-mirror
+(def editor-view
   (atom nil))
 
 (defn editor-contents []
-  (when-let [cm @code-mirror]
-    (.getValue cm)))
+  (when-let [view @editor-view]
+    (.toString (.-doc (.-state view)))))
 
 (defn history []
-  (when-let [cm @code-mirror]
-    (.getHistory (.getDoc cm))))
+  (when-let [view @editor-view]
+    (.field (.-state view) js/cm_commands.historyField)))
 
 (defn copy-to-clipboard [s]
   (let [temp-textarea (js/document.createElement "textarea")]
@@ -66,7 +66,7 @@
   ;; Unfortunately the encoded URL takes quite a bit more bytes than
   ;; the code itself. I considered using Compression Streams API to
   ;; decrease URL size, but it seems relatively new and I'm not too keen
-  ;; on dealing with the asynchronity.
+  ;; on dealing with the asynchrony.
   (-> code
       js/encodeURIComponent
       js/unescape
@@ -149,6 +149,7 @@
                            (local-store-history-key))))
 
 (defn store-history [history]
+  (.log js/console history)
   (.setItem (local-storage)
             (local-store-history-key)
             (js/JSON.stringify history)))
@@ -170,9 +171,9 @@
   (reset! store-history-timeout-id
           (js/setTimeout planned-store-history 400)))
 
-(defn code-input-changed [_event]
-  (-> (editor-contents) store-code)
-  (plan-store-history))
+;; (defn code-input-changed [_event]
+;;   (-> (editor-contents) store-code)
+;;   (plan-store-history))
 
 (defn determine-initial-code []
   (if-let [url-embedded (url-embedded-code)]
@@ -193,32 +194,59 @@
     (or (stored-code)
         preloaded-code)))
 
+;; (defn initialize-code-mirror []
+;;   (reset! code-mirror
+;;           (.fromTextArea js/CodeMirror
+;;                          (.getElementById js/document "code-input")
+;;                          #js {"mode" "clojure"
+;;                               "lineNumbers" true
+;;                               "matchBrackets" true}))
+;;   (.init js/parinferCodeMirror @code-mirror "smart" {})
+;;   (.on @code-mirror
+;;        "change"
+;;        (fn [_ change] (code-input-changed change)))
+;;   (.setValue @code-mirror
+;;              (determine-initial-code))
+;;   (when-let [history (stored-history)]
+;;     (.setHistory (.getDoc @code-mirror) history)))
+
+(defn store-on-change []
+  (.of (.-updateListener js/cm_view.EditorView)
+       (fn [update]
+         (when (.-docChanged update)
+           (-> (editor-contents) store-code)
+           (plan-store-history)))))
+
 (defn initialize-code-mirror []
-  (reset! code-mirror
-          (.fromTextArea js/CodeMirror
-                         (.getElementById js/document "code-input")
-                         #js {"mode" "clojure"
-                              "lineNumbers" true
-                              "matchBrackets" true}))
-  (.init js/parinferCodeMirror @code-mirror "smart" {})
-  (.on @code-mirror
-       "change"
-       (fn [_ change] (code-input-changed change)))
-  (.setValue @code-mirror
-             (determine-initial-code))
-  (when-let [history (stored-history)]
-    (.setHistory (.getDoc @code-mirror) history)))
+  (let [doc (determine-initial-code)
+        parent-div (.getElementById js/document "code-input")
+        start-state
+        (.create
+         js/cm_state.EditorState
+         #js {:doc doc
+              :extensions #js[(.of js/cm_language.indentUnit " ")
+                              js/codemirror.basicSetup
+                              (js/lang_clojure.clojure)
+                              (js/codemirror6_parinfer.parinferExtension)
+                              (store-on-change)]})
 
-(defn undo []
-  (.execCommand @code-mirror "undo"))
+        view (js/cm_view.EditorView. #js{:state start-state
+                                         :parent parent-div})]
+    (reset! editor-view view)
+    (when-let [history (stored-history)])))
+      ;; (.setHistory (.getDoc @code-mirror) history)))) ; TODO
 
-(defn redo []
-  (.execCommand @code-mirror "redo"))
 
-(defn clear-code []
-  (when (js/confirm "Really clear code buffer?")
-    (.setValue @code-mirror "")
-    (store-code "")))
+;; (defn undo []
+;;   (.execCommand @code-mirror "undo"))
+
+;; (defn redo []
+;;   (.execCommand @code-mirror "redo"))
+
+;; (defn clear-code []
+;;   (when (js/confirm "Really clear code buffer?")
+;;     (.setValue @code-mirror "")
+;;     (store-code "")))
 
 (defn -clear-output! []
   (reset! output "")
@@ -236,11 +264,12 @@
 
 (declare load-code)
 
-(defn load-from-url [url]
+(defn load-from-url
   "Experimental; necessarily asynchronous, so fetched code only becomes
    available on reload, which is forced as soon as code is loaded (so, any code
    before this invocation might be evaluated more than once).
    E.g. (load-from-url \"https://raw.githubusercontent.com/weavejester/medley/master/src/medley/core.cljc\")"
+  [url]
   (if-let [source (get @external-sources url)]
     (load-string source)
     (do
@@ -343,13 +372,11 @@
                 :border-color "green"
                 :color "green"}}
        @page-source]])
-   [:textarea
-    {:id "code-input"
-     :cols 120
-     :rows 20
-     :onChange code-input-changed}
-    (or (.getItem (.-localStorage js/window) "code")
-        preloaded-code)]
+   [:div
+    {:id "code-input"}]
+     ;; :cols 120
+     ;; :rows 20
+     ;; :onChange code-input-changed}] ; TODO!
    [:div
     [:button
      {:style {:margin "1px"}
@@ -362,7 +389,7 @@
               :font-size "1.2em"
               :font-weight "bold"
               :transform "translate(0,2px)"}
-      :on-click undo}
+      :on-click nil} ;undo}
      "⟲"]
     [:button
      {:style {:margin "0 1px 0 1px"
@@ -370,7 +397,7 @@
               :font-size "1.2em"
               :font-weight "bold"
               :transform "translate(0,2px)"}
-      :on-click redo}
+      :on-click nil} ;redo}
      "⟳"]
     [horizontal-separator]
     [:button
@@ -384,7 +411,7 @@
      "Share"]
     [:button
      {:style {:margin "1px"}
-      :on-click clear-code}
+      :on-click nil} ;clear-code}
      "Clear"]
     (when-not (string/blank? (.-search (location->url)))
       [:<>
