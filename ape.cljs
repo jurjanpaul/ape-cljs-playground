@@ -171,10 +171,6 @@
   (reset! store-history-timeout-id
           (js/setTimeout planned-store-history 400)))
 
-;; (defn code-input-changed [_event]
-;;   (-> (editor-contents) store-code)
-;;   (plan-store-history))
-
 (defn determine-initial-code []
   (if-let [url-embedded (url-embedded-code)]
     (do
@@ -194,22 +190,6 @@
     (or (stored-code)
         preloaded-code)))
 
-;; (defn initialize-code-mirror []
-;;   (reset! code-mirror
-;;           (.fromTextArea js/CodeMirror
-;;                          (.getElementById js/document "code-input")
-;;                          #js {"mode" "clojure"
-;;                               "lineNumbers" true
-;;                               "matchBrackets" true}))
-;;   (.init js/parinferCodeMirror @code-mirror "smart" {})
-;;   (.on @code-mirror
-;;        "change"
-;;        (fn [_ change] (code-input-changed change)))
-;;   (.setValue @code-mirror
-;;              (determine-initial-code))
-;;   (when-let [history (stored-history)]
-;;     (.setHistory (.getDoc @code-mirror) history)))
-
 (defn store-on-change []
   (.of (.-updateListener js/cm_view.EditorView)
        (fn [update]
@@ -217,36 +197,41 @@
            (-> (editor-contents) store-code)
            (plan-store-history)))))
 
+(defn new-editor-state [doc]
+  (.create js/cm_state.EditorState
+           #js {:doc doc
+                :extensions #js[(.of js/cm_language.indentUnit " ")
+                                js/codemirror.basicSetup
+                                (js/lang_clojure.clojure)
+                                (js/codemirror6_parinfer.parinferExtension)
+                                (store-on-change)]}))
+
+(defn new-editor [doc]
+  (let [parent-div (.getElementById js/document "code-input")
+        start-state (new-editor-state doc)]
+    (js/cm_view.EditorView. #js{:state start-state
+                                :parent parent-div})))
+
 (defn initialize-code-mirror []
   (let [doc (determine-initial-code)
-        parent-div (.getElementById js/document "code-input")
-        start-state
-        (.create
-         js/cm_state.EditorState
-         #js {:doc doc
-              :extensions #js[(.of js/cm_language.indentUnit " ")
-                              js/codemirror.basicSetup
-                              (js/lang_clojure.clojure)
-                              (js/codemirror6_parinfer.parinferExtension)
-                              (store-on-change)]})
-
-        view (js/cm_view.EditorView. #js{:state start-state
-                                         :parent parent-div})]
+        view (new-editor doc)]
     (reset! editor-view view)
     (when-let [history (stored-history)])))
       ;; (.setHistory (.getDoc @code-mirror) history)))) ; TODO
 
+(defn undo []
+  (js/cm_commands.undo @editor-view)
+  (.focus @editor-view))
 
-;; (defn undo []
-;;   (.execCommand @code-mirror "undo"))
+(defn redo []
+  (js/cm_commands.redo @editor-view)
+  (.focus @editor-view))
 
-;; (defn redo []
-;;   (.execCommand @code-mirror "redo"))
-
-;; (defn clear-code []
-;;   (when (js/confirm "Really clear code buffer?")
-;;     (.setValue @code-mirror "")
-;;     (store-code "")))
+(defn clear-code []
+  (when (js/confirm "Really clear code buffer?")
+    (.setState @editor-view (new-editor-state ""))
+    (store-code ""))
+  (.focus @editor-view))
 
 (defn -clear-output! []
   (reset! output "")
@@ -374,9 +359,6 @@
        @page-source]])
    [:div
     {:id "code-input"}]
-     ;; :cols 120
-     ;; :rows 20
-     ;; :onChange code-input-changed}] ; TODO!
    [:div
     [:button
      {:style {:margin "1px"}
@@ -389,7 +371,7 @@
               :font-size "1.2em"
               :font-weight "bold"
               :transform "translate(0,2px)"}
-      :on-click nil} ;undo}
+      :on-click undo}
      "⟲"]
     [:button
      {:style {:margin "0 1px 0 1px"
@@ -397,7 +379,7 @@
               :font-size "1.2em"
               :font-weight "bold"
               :transform "translate(0,2px)"}
-      :on-click nil} ;redo}
+      :on-click redo}
      "⟳"]
     [horizontal-separator]
     [:button
@@ -411,7 +393,7 @@
      "Share"]
     [:button
      {:style {:margin "1px"}
-      :on-click nil} ;clear-code}
+      :on-click clear-code}
      "Clear"]
     (when-not (string/blank? (.-search (location->url)))
       [:<>
