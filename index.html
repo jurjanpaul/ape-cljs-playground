@@ -31,18 +31,13 @@ The page is hosted at https://jurjanpaul.github.io/ape-cljs-playground.
 Currently provides
  - run ClojureScript (per SCI / Scittle, https://github.com/babashka/scittle)
    - includes macro support out-of-the-box (might require an extra reload)
- - Parinfer (per parinfer-codemirror)
+ - Parinfer (per codemirror6-parinfer at
+   https://github.com/jurjanpaul/codemirror6-parinfer)
  - persistence (per browser's localStorage)
  - Reagent (not essential, but did not require any extra effort per Scittle,
    plus it definitely kickstarted some dogfeeding).
    To render, simply invoke the convenience function `render-with-reagent`
    with a reagent component function as parameter.
- - maximum portability by being contained in a single HTML file
-   (not at all essential, but nice as long as it's feasible in light of the
-   remaining wishes)
-   => Well, this is no longer really true anymore now that I'm depending on
-      a tweaked version of parinfer-codemirror.js to improve scrolling
-      behaviour.
  - trivial, but very helpful: can be saved as an 'app' on phone's home screen,
    each 'app' automagically getting its own localStorage!
  - history / undo + redo
@@ -51,7 +46,7 @@ Currently provides
    Note: As was to be expected, large programs will result in a huge URL that
    no (mobile) browser can actually open.
 
-Current annoyances
+Current annoyances (hopefully fixed after upgrade to CodeMirror 6):
  - After (un)zooming&scrolling, the cursor position sometimes no longer
    corresponds to the actual insertion point;
    => Unfortunately, I still haven't figured out how to deal with this,
@@ -64,20 +59,6 @@ Current annoyances
    => Improved the situation  w.r.t. vertical scrolling somewhat by tweaking
       parinfer-codemirror.js
 
-Other wishes/TODOs (nothing planned):
- - on-screen footer keyboard with opening braces + other useful special chars
- - multiple buffers
-   (Hint: by saving the page multiple times to my iPhone's Home screen I
-   already get multiple buffers for free!)
- - improved styling for mobile (just zoom and swipe/scroll a lot for now!);
- - linting
- - allow fetching existing code (gist) from url
- - add deps (seems hard/hardly possible)
- - separate Scittle script's namespace from user entered code's namespace
- - save to gist or ... ?
- - upgrade to CodeMirror 6 (support for Parinfer seems to be a challenge
-   still)
-
 API
  - everything that Scittle exposes, including:
      - cljs.pprint as pprint
@@ -85,7 +66,27 @@ API
      - reagent.core as r
      - reagent.dom as rdom
  - render-with-reagent
- - load-from-url (experimental)
+
+Other wishes/TODOs (nothing planned in the near future):
+ - smart indentation (worked on CodeMirror 5, but not on CodeMirror 6 yet);
+ - on-screen footer keyboard with opening braces + other useful special chars
+ - multiple buffers
+   (Hint: by saving the page multiple times to my iPhone's Home screen I
+   already get multiple buffers for free!)
+ - improved styling for mobile (just zoom and swipe/scroll a lot for now!);
+ - Storing the history to local storage as well (used to be implemented, but
+   I removed it for now, as it was no longer working reliably after the upgrade
+   to CodeMirror 6, without writing a lot more code to deal with StateEffect
+   (de)serialisation);
+ - allow fetching existing code (gist) from url; (I included an experimental
+   function `load-from-url` that would do this, but it required a rather
+   ugly full reload and broke for existing code on GitHub when Scittle moved
+   to match `:cljs` in reader conditionals, with the loaded code having a
+   transitive dependency on the the Google Closure library...)
+ - add deps (seems hard/hardly possible)
+ - separate Scittle script's namespace from user entered code's namespace
+ - save to gist or ... ?
+ - linting
 
 All in all I feel this is a nice showcase of what is possible with Scittle!
 Thanks to all library and tool builders who made it possible for me to throw
@@ -146,6 +147,7 @@ derivative of other people's hard work.)
         padding: 1px;
         padding-bottom: 1em;
         min-height: 20em;
+        max-height: 60vh;
       }
 
       .cm-editor, .cm-editor * {
@@ -211,11 +213,11 @@ derivative of other people's hard work.)
          "@codemirror/lint": "https://cdn.jsdelivr.net/npm/@codemirror/lint@6.8.4/dist/index.js",
          "@marijn/find-cluster-break": "https://cdn.jsdelivr.net/npm/@marijn/find-cluster-break@1.0.2",
          "@codemirror/state": "https://cdn.jsdelivr.net/npm/@codemirror/state@6.5.0/dist/index.js",
-         "@codemirror/view": "https://cdn.jsdelivr.net/npm/@codemirror/view@6.35.3/dist/index.js",
+         "@codemirror/view": "https://cdn.jsdelivr.net/npm/@codemirror/view@6.35.0/dist/index.js",
          "@codemirror/merge": "https://cdn.jsdelivr.net/npm/@codemirror/merge@6.7.4/dist/index.js",
          "style-mod": "https://cdn.jsdelivr.net/npm/style-mod@4.1.2/src/style-mod.js",
          "w3c-keyname": "https://cdn.jsdelivr.net/npm/w3c-keyname@2.2.8/index.js",
-         "@jurjanpaul/codemirror6-parinfer": "https://cdn.jsdelivr.net/npm/@jurjanpaul/codemirror6-parinfer@latest/dist/cm6-parinfer.min.js"
+         "@jurjanpaul/codemirror6-parinfer": "https://cdn.jsdelivr.net/npm/@jurjanpaul/codemirror6-parinfer@0.0.13/dist/cm6-parinfer.min.js"
        }
      }
    </script>

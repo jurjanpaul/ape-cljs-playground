@@ -49,10 +49,6 @@
   (when-let [view @editor-view]
     (.toString (.-doc (.-state view)))))
 
-(defn history []
-  (when-let [view @editor-view]
-    (.field (.-state view) js/cm_commands.historyField)))
-
 (defn copy-to-clipboard [s]
   (let [temp-textarea (js/document.createElement "textarea")]
     (.appendChild js/document.body temp-textarea)
@@ -131,6 +127,8 @@
   (atom default-local-store-code-key))
 
 (defn local-store-history-key []
+  ;; Storing the history is no longer supported, but the key is still
+  ;; kept, so that any old and incompatible history can be cleaned up.
   (str @local-store-code-key ".history"))
 
 (defn local-storage []
@@ -142,34 +140,9 @@
 (defn store-code [code]
   (.setItem (local-storage)
             @local-store-code-key
-            code))
-
-(defn stored-history []
-  (js/JSON.parse (.getItem (local-storage)
-                           (local-store-history-key))))
-
-(defn store-history [history]
-  (.log js/console history)
-  (.setItem (local-storage)
-            (local-store-history-key)
-            (js/JSON.stringify history)))
-
-(def store-history-timeout-id
-  (atom nil))
-
-(defn planned-store-history []
-  (when @store-history-timeout-id
-    (js/clearTimeout @store-history-timeout-id)
-    (reset! store-history-timeout-id nil))
-  (-> (history)
-      store-history))
-
-(defn plan-store-history []
-  (when @store-history-timeout-id
-    (js/clearTimeout @store-history-timeout-id)
-    (reset! store-history-timeout-id nil))
-  (reset! store-history-timeout-id
-          (js/setTimeout planned-store-history 400)))
+            code)
+  (.removeItem (local-storage) ; remove old history if there
+               (local-store-history-key)))
 
 (defn determine-initial-code []
   (if-let [url-embedded (url-embedded-code)]
@@ -184,7 +157,6 @@
         (if keep-local?
           locally-stored
           (do
-            (store-history "")
             (store-code url-embedded)
             url-embedded))))
     (or (stored-code)
@@ -194,8 +166,7 @@
   (.of (.-updateListener js/cm_view.EditorView)
        (fn [update]
          (when (.-docChanged update)
-           (-> (editor-contents) store-code)
-           (plan-store-history)))))
+           (-> (editor-contents) store-code)))))
 
 (defn new-editor-state [doc]
   (.create js/cm_state.EditorState
@@ -215,9 +186,7 @@
 (defn initialize-code-mirror []
   (let [doc (determine-initial-code)
         view (new-editor doc)]
-    (reset! editor-view view)
-    (when-let [history (stored-history)])))
-      ;; (.setHistory (.getDoc @code-mirror) history)))) ; TODO
+    (reset! editor-view view)))
 
 (defn undo []
   (js/cm_commands.undo @editor-view)
