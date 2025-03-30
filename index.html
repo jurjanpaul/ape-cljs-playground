@@ -46,19 +46,6 @@ Currently provides
    Note: As was to be expected, large programs will result in a huge URL that
    no (mobile) browser can actually open.
 
-Current annoyances (hopefully fixed after upgrade to CodeMirror 6):
- - After (un)zooming&scrolling, the cursor position sometimes no longer
-   corresponds to the actual insertion point;
-   => Unfortunately, I still haven't figured out how to deal with this,
-   other than:
-    - zooming out;
-    - selecting another page element;
-    - tilting the phone;
-    - reloading the entire page...
- - Cursor position being scrolled out of focus when deleting/commenting code.
-   => Improved the situation  w.r.t. vertical scrolling somewhat by tweaking
-      parinfer-codemirror.js
-
 API
  - everything that Scittle exposes, including:
      - cljs.pprint as pprint
