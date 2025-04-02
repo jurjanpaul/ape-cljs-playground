@@ -10,8 +10,7 @@ Powered by the amazing [Scittle](https://babashka.org/scittle/)
 [CodeMirror](https://codemirror.net/)),
 all you need is
 [index.html](https://github.com/jurjanpaul/ape-cljs-playground/blob/main/index.html)
-(which includes some documentation as inline comment) and
-[ape.cljs](https://github.com/jurjanpaul/ape-cljs-playground/blob/main/ape.cljs).
+(which includes some documentation as inline comment).
 
 Host it yourself or simply use https://jurjanpaul.github.io/ape-cljs-playground.
 
