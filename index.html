@@ -187,15 +187,14 @@ derivative of other people's hard work.)
          "@codemirror/commands": "https://cdn.jsdelivr.net/npm/@codemirror/commands@6.7.1/dist/index.js",
          "@codemirror/search": "https://cdn.jsdelivr.net/npm/@codemirror/search@6.5.8/dist/index.js",
          "@codemirror/autocomplete": "https://cdn.jsdelivr.net/npm/@codemirror/autocomplete@6.18.3/dist/index.js",
+         "@codemirror/language": "https://cdn.jsdelivr.net/npm/@codemirror/language@6.11.3/dist/index.js",
          "@codemirror/lint": "https://cdn.jsdelivr.net/npm/@codemirror/lint@6.8.4/dist/index.js",
          "crelt": "https://cdn.jsdelivr.net/npm/crelt@1.0.6/index.js",
-         "@nextjournal/lezer-clojure": "https://cdn.jsdelivr.net/npm/@nextjournal/lezer-clojure@1.0.0/dist/index.es.js",
          "@lezer/highlight": "https://cdn.jsdelivr.net/npm/@lezer/highlight@1.2.1/dist/index.js",
          "@lezer/lr": "https://cdn.jsdelivr.net/npm/@lezer/lr@1.4.2/dist/index.js",
          "@lezer/common": "https://cdn.jsdelivr.net/npm/@lezer/common@1.2.3/dist/index.js",
+         "@nextjournal/lezer-clojure": "https://cdn.jsdelivr.net/npm/@nextjournal/lezer-clojure@1.0.0/dist/index.es.js",
          "@codemirror/commands": "https://cdn.jsdelivr.net/npm/@codemirror/commands@6.7.1/dist/index.js",
-         "@codemirror/language": "https://cdn.jsdelivr.net/npm/@codemirror/language@6.10.6/dist/index.js",
-         "@codemirror/lint": "https://cdn.jsdelivr.net/npm/@codemirror/lint@6.8.4/dist/index.js",
          "@marijn/find-cluster-break": "https://cdn.jsdelivr.net/npm/@marijn/find-cluster-break@1.0.2",
          "@codemirror/state": "https://cdn.jsdelivr.net/npm/@codemirror/state@6.5.0/dist/index.js",
          "@codemirror/view": "https://cdn.jsdelivr.net/npm/@codemirror/view@6.35.0/dist/index.js",
@@ -253,6 +252,7 @@ derivative of other people's hard work.)
 (def page-source (r/atom nil))
 (def reagent-component (r/atom nil))
 (def output (r/atom nil))
+(def running? (r/atom false))
 (defn print-to-output [s]
   (swap! output str s "\n"))
 
@@ -471,17 +471,21 @@ derivative of other people's hard work.)
 (defn load-code []
   (let [c (editor-contents)]
     (-clear-output!)
-    (js/setTimeout
-     (fn []
-       (try
-         (let [value (load-string c)]
-           (print-to-output (pr-str value)))
-         (catch ^:sci/error js/Error e
-           (when-not (contains? (ex-data e) :loading-url)
-             (println "Error:" (.-message e))
-             (run! println (-> (sci/stacktrace e) (sci/format-stacktrace))))))
-       (js/setTimeout scroll-output-into-focus! 100)
-       200))))
+    (reset! running? true)
+    (js/requestAnimationFrame
+     (fn [_]
+      (js/setTimeout
+       (fn []
+         (try
+           (let [value (load-string c)]
+             (print-to-output (pr-str value)))
+           (catch ^:sci/error js/Error e
+             (when-not (contains? (ex-data e) :loading-url)
+               (println "Error:" (.-message e))
+               (run! println (-> (sci/stacktrace e) (sci/format-stacktrace))))))
+         (reset! running? false)
+         (js/setTimeout scroll-output-into-focus! 100))
+       2000)))))
 
 (defn render-output []
   (when-not (nil? @output)
@@ -559,50 +563,52 @@ derivative of other people's hard work.)
        @page-source]])
    [:div
     {:id "code-input"}]
-   [:div
-    [:button
-     {:style {:margin "1px"}
-      :on-click load-code}
-     "Load"]
-    [horizontal-separator]
-    [:button
-     {:style {:margin "0 1px 0 1px"
-              :padding "0 4px 0 4px"
-              :font-size "1.2em"
-              :font-weight "bold"
-              :transform "translate(0,2px)"}
-      :on-click undo}
-     "⟲"]
-    [:button
-     {:style {:margin "0 1px 0 1px"
-              :padding "0 4px 0 4px"
-              :font-size "1.2em"
-              :font-weight "bold"
-              :transform "translate(0,2px)"}
-      :on-click redo}
-     "⟳"]
-    [horizontal-separator]
-    [:button
-     {:style {:margin "1px"}
-      :on-click #(do (copy-to-clipboard (editor-contents))
-                     (js/alert "Code copied to clipboard."))}
-     "Copy"]
-    [:button
-     {:style {:margin "1px"}
-      :on-click share}
-     "Share"]
-    [:button
-     {:style {:margin "1px"}
-      :on-click clear-code}
-     "Clear"]
-    (when-not (string/blank? (.-search (location->url)))
-      [:<>
-       [horizontal-separator]
-       [:span
-        {:style {:font-size "0.8em"}}
-        [:a
-         {:href (.-pathname (location->url))}
-         "main buffer >"]]])]
+   (if @running?
+     [:h3 {:style {:color "green"}} "Running ..."]
+     [:div
+      [:button
+       {:style {:margin "1px"}
+        :on-click (fn [event] (.preventDefault event) (load-code))}
+       "Load"]
+      [horizontal-separator]
+      [:button
+       {:style {:margin "0 1px 0 1px"
+                :padding "0 4px 0 4px"
+                :font-size "1.2em"
+                :font-weight "bold"
+                :transform "translate(0,2px)"}
+        :on-click undo}
+       "⟲"]
+      [:button
+       {:style {:margin "0 1px 0 1px"
+                :padding "0 4px 0 4px"
+                :font-size "1.2em"
+                :font-weight "bold"
+                :transform "translate(0,2px)"}
+        :on-click redo}
+       "⟳"]
+      [horizontal-separator]
+      [:button
+       {:style {:margin "1px"}
+        :on-click #(do (copy-to-clipboard (editor-contents))
+                       (js/alert "Code copied to clipboard."))}
+       "Copy"]
+      [:button
+       {:style {:margin "1px"}
+        :on-click share}
+       "Share"]
+      [:button
+       {:style {:margin "1px"}
+        :on-click clear-code}
+       "Clear"]
+      (when-not (string/blank? (.-search (location->url)))
+        [:<>
+         [horizontal-separator]
+         [:span
+          {:style {:font-size "0.8em"}}
+          [:a
+           {:href (.-pathname (location->url))}
+           "main buffer >"]]])])
    [render-output]
    [render-reagent-component]])
 
@@ -612,6 +618,6 @@ derivative of other people's hard work.)
   </head>
   <body>
     <div id="editor"></div>
-    <script async defer src="https://buttons.github.io/buttons.js"></script>
+    <script src="https://buttons.github.io/buttons.js"></script>
   </body>
 </html>
