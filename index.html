@@ -485,7 +485,7 @@ derivative of other people's hard work.)
                (run! println (-> (sci/stacktrace e) (sci/format-stacktrace))))))
          (reset! running? false)
          (js/setTimeout scroll-output-into-focus! 100))
-       2000)))))
+       200)))))
 
 (defn render-output []
   (when-not (nil? @output)
