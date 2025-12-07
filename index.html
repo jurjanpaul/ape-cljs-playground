@@ -173,6 +173,13 @@ derivative of other people's hard work.)
       .pointer {
         cursor: pointer;
       }
+
+      .pulse {
+        width:10px;height:10px;border-radius:50%;
+        background: green;
+        animation: pulse .8s ease-in-out infinite alternate;
+      }
+      @keyframes pulse {to {transform: scale(1.6); opacity:0.3;}}
     </style>
     <script src="https://cdn.jsdelivr.net/npm/scittle@0.6.22/dist/scittle.js" type="application/javascript"></script>
     <script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
@@ -564,7 +571,7 @@ derivative of other people's hard work.)
    [:div
     {:id "code-input"}]
    (if @running?
-     [:h3 {:style {:color "green"}} "Running ..."]
+     [:h3 {:style {:color "green"}} " Running " [:div.pulse {:style {:display "inline-block"}}]]
      [:div
       [:button
        {:style {:margin "1px"}
